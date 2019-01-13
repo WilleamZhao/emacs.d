@@ -15,20 +15,53 @@
 
 ;;; Standard package repositories
 
-(let* ((no-ssl (and (memq system-type '(windows-nt ms-dos))
-                    (not (gnutls-available-p))))
-       (proto (if no-ssl "http" "https")))
-  (add-to-list 'package-archives (cons "melpa" (concat proto "://elpa.emacs-china.org/melpa/")) t)
-  ;; Official MELPA Mirror, in case necessary.
-  ;;(add-to-list 'package-archives (cons "melpa-mirror" (concat proto "://www.mirrorservice.org/sites/melpa.org/packages/")) t)
-  (if (< emacs-major-version 24)
-      ;; For important compatibility libraries like cl-lib
-      (add-to-list 'package-archives '("gnu" . (concat proto "://elpa.emacs-china.org/gnu/")))
-    (unless no-ssl
-      ;; Force SSL for GNU ELPA
-      (setcdr (assoc "gnu" package-archives) "https://elpa.emacs-china.org/gnu/"))))
+(defun set-package-archives (archives)
+  "Set specific package ARCHIVES repository."
+  (interactive
+   (list (intern (completing-read "Choose package archives: "
+                                  '(melpa melpa-mirror emacs-china netease tuna)))))
 
-
+  (setq package-archives
+
+        (let* ((no-ssl (and (memq system-type '(windows-nt ms-dos))
+                            (not (gnutls-available-p))))
+               (proto (if no-ssl "http" "https")))
+          (pcase archives
+            ('melpa
+             `(,(cons "gnu"   (concat proto "://elpa.gnu.org/packages/"))
+               ,(cons "melpa" (concat proto "://melpa.org/packages/"))))
+            ('melpa-mirror
+             `(,(cons "gnu"   (concat proto "://elpa.gnu.org/packages/"))
+               ,(cons "melpa" (concat proto "://www.mirrorservice.org/sites/melpa.org/packages/"))))
+            ('emacs-china
+             `(,(cons "gnu"   (concat proto "://elpa.emacs-china.org/gnu/"))
+               ,(cons "melpa" (concat proto "://elpa.emacs-china.org/melpa/"))))
+            ('netease
+             `(,(cons "gnu"   (concat proto "://mirrors.163.com/elpa/gnu/"))
+               ,(cons "melpa" (concat proto "://mirrors.163.com/elpa/melpa/"))))
+            ('tuna
+             `(,(cons "gnu"   (concat proto "://mirrors.tuna.tsinghua.edu.cn/elpa/gnu/"))
+               ,(cons "melpa" (concat proto "://mirrors.tuna.tsinghua.edu.cn/elpa/melpa/"))))
+            (archives
+             (error "Unknown archives: '%s'" archives)))))
+
+  (message "Set package archives to '%s'." archives))
+
+(set-package-archives centaur-package-archives)
+
+;; (let* ((no-ssl (and (memq system-type '(windows-nt ms-dos))
+;; (not (gnutls-available-p))))
+;; (proto (if no-ssl "http" "https")))
+;; (add-to-list 'package-archives (cons "melpa" (concat proto "://elpa.emacs-china.org/melpa/")) t)
+;; Official MELPA Mirror, in case necessary.
+;;(add-to-list 'package-archives (cons "melpa-mirror" (concat proto "://www.mirrorservice.org/sites/melpa.org/packages/")) t)
+;; (if (< emacs-major-version 24)
+;; For important compatibility libraries like cl-lib
+;; (add-to-list 'package-archives '("gnu" . (concat proto "://elpa.emacs-china.org/gnu/")))
+;; (unless no-ssl
+;; Force SSL for GNU ELPA
+;; (setcdr (assoc "gnu" package-archives) "https://elpa.emacs-china.org/gnu/"))))
+
 ;;; On-demand installation of packages
 
 (require 'cl-lib)
@@ -59,13 +92,13 @@ locate PACKAGE."
      (message "Couldn't install optional package `%s': %S" package err)
      nil)))
 
-
+
 ;;; Fire up package.el
 
 (setq package-enable-at-startup nil)
 (package-initialize)
 
-
+
 ;; package.el updates the saved version of package-selected-packages correctly only
 ;; after custom-file has been loaded, which is a bug. We work around this by adding
 ;; the required packages to package-selected-packages after startup is complete.
@@ -87,11 +120,9 @@ locate PACKAGE."
             (lambda () (package--save-selected-packages
                    (seq-uniq (append sanityinc/required-packages package-selected-packages))))))
 
-
 (require-package 'fullframe)
 (fullframe list-packages quit-window)
 
-
 (defun sanityinc/set-tabulated-list-column-width (col-name width)
   "Set any column with name COL-NAME to the given WIDTH."
   (when (> width (length col-name))
