@@ -113,12 +113,12 @@ typical word processor."
 
 (global-set-key (kbd "C-c c") 'org-capture)
 
-(setq org-capture-templates
-      `(("t" "todo" entry (file "")  ; "" => `org-default-notes-file'
-         "* NEXT %?\n%U\n" :clock-resume t)
-        ("n" "note" entry (file "")
-         "* %? :NOTE:\n%U\n%a\n" :clock-resume t)
-        ))
+;;(setq org-capture-templates
+;;      `(("t" "todo" entry (file "")  ; "" => `org-default-notes-file'
+;;         "* NEXT %?\n%U\n" :clock-resume t)
+;;        ("n" "note" entry (file "")
+;;         "* %? :NOTE:\n%U\n%a\n" :clock-resume t)
+;;        ))
 
 
 
@@ -163,6 +163,7 @@ typical word processor."
 
 ;;; To-do settings
 
+;; 多状态工作流程
 (setq org-todo-keywords
       (quote ((sequence "TODO(t)" "NEXT(n)" "|" "DONE(d!/!)")
               (sequence "PROJECT(p)" "|" "DONE(d!/!)" "CANCELLED(c@/!)")
@@ -310,11 +311,20 @@ typical word processor."
             (lambda () (call-process "/usr/bin/osascript" nil 0 nil "-e"
                                 "tell application \"org-clock-statusbar\" to clock out"))))
 
+;; bullets
+(require-package 'org-bullets)
+(require 'org-bullets)
+(add-hook 'org-mode-hook (lambda () (org-bullets-mode 1)))
+
+;;   org-indent mode
+(setq org-startup-indented t)
+
+;;   bullet list
+(setq org-bullets-bullet-list '("☰" "☷" "☯" "☭"))
 
 
 ;; TODO: warn about inconsistent items, e.g. TODO inside non-PROJECT
 ;; TODO: nested projects!
-
 
 
 ;;; Archiving
@@ -322,6 +332,399 @@ typical word processor."
 (setq org-archive-mark-done nil)
 (setq org-archive-location "%s_archive::* Archive")
 
+;;(defun sourcod-org-packages/post-init-org()
+;;  (progn
+;;    (require 'ox-publish)
+;;    ))
+
+(setq org-path "/Users/sourcod/workspace/org/")
+(setq org-note-path  (concat org-path "notes/"))
+
+
+(setq org-default-notes-file (concat org-path "inbox.org"))
+
+;;(setq org-capture-templates
+;;      '(("t" "Todo" entry (file+headline ("~/workspace/org/gtd.org") "Tasks")
+;;         "* TODO [#B] %?\n  %i\n"
+;;         :empty-lines 1
+;;         )
+;;        ("tg" "Todo1" entry (file+headline "~/workspace/org/gtd.org" "Tasks")
+;;         "* TODO [#B] %?\n  %i\n"
+;;         :empty-lines 1
+;;         )
+;;        ("n" "notes" entry (file+headline "~/workspace/org/notes.org" "Quick notes")
+;;         "* %?\n  %i\n %U"
+;;         :empty-lines 1
+;;         )
+;;        ("B" "Blog Ideas" entry (file+headline "~/workspace/org/notes.org" "Blog Ideas")
+;;         "* TODO [#B] %?\n  %i\n %U"
+;;         :empty-lines 1
+;;         )
+;;        ("s" "Code Snippet" entry (file "~/workspace/org/snippets.org")
+;;         "* %?\t%^g\n#+BEGIN_SRC %^{language}\n\n#+END_SRC")
+;;
+;;        ("k" "tlkj" entry (file+headline "~/workspace/org/gtd.org" "tlkj")
+;;         "* TODO [#B] %?\n  %i\n %U"
+;;         :empty-lines 1)
+;;        ("w" "work" entry (file+headline "~/workspace/org/gtd.org" "work")
+;;         "* TODO [#B] %?\n  %i\n %U"
+;;         :empty-lines 1)
+;;        ("l" "links" entry (file+headline "~/workspace/org/notes.org" "link notes")
+;;         "* TODO [#C] %?\n  %i\n %a \n %U"
+;;         :empty-lines 1)
+;;        ("j" "Journal Entry"
+;;         entry (file+datetree "~/workspace/org/journal.org")
+;;         "* %?"
+;;         :empty-lines 1)
+;;        ("b" "Books" entry (file+headline "~/workspace/org/books.org" "book notes")
+;;         "* TODO [#D] %?\n  %i\n %U"
+;;         :empty-lines 1)
+;;        ))
+;; billing
+(defun get-year-and-month ()
+  (list (format-time-string "%Y年") (format-time-string "%m月")))
+
+
+(defun find-month-tree ()
+  (let* ((path (get-year-and-month))
+         (level 1)
+         end)
+    (unless (derived-mode-p 'org-mode)
+      (error "Target buffer \"%s\" should be in Org mode" (current-buffer)))
+    (goto-char (point-min))             ;移动到 buffer 的开始位置
+    ;; 先定位表示年份的 headline，再定位表示月份的 headline
+    (dolist (heading path)
+      (let ((re (format org-complex-heading-regexp-format
+                        (regexp-quote heading)))
+            (cnt 0))
+        (if (re-search-forward re end t)
+            (goto-char (point-at-bol))  ;如果找到了 headline 就移动到对应的位置
+          (progn                        ;否则就新建一个 headline
+            (or (bolp) (insert "\n"))
+            (if (/= (point) (point-min)) (org-end-of-subtree t t))
+            (insert (make-string level ?*) " " heading "\n"))))
+      (setq level (1+ level))
+      (setq end (save-excursion (org-end-of-subtree t t))))
+    (org-end-of-subtree)))
+
+;; dynamic href
+(setq org-capture-templates
+      `(("c" "Contacts" table-line (file ,(concat org-path "contact.org"))
+               "| %U | %^{姓名} | %^{手机号}| %^{邮箱} |")
+        ("t" "GTD")
+        ("ta" "Tasks" entry (file+headline ,(concat org-path "gtd.org") "Tasks")
+         "* TODO [#B] %?\n  %i\n"
+         :empty-lines 1
+         )
+        ("tw" "work" entry (file+headline ,(concat org-path "gtd.org") "work")
+         "* TODO [#B] %?\n %i\n"
+         :empty-lines 1
+         )
+        ;; 临时笔记
+        ("n" "notes" entry (file+headline ,(concat org-path "notes.org") "Quick notes")
+         "* %?\n  %i\n %U"
+         :empty-lines 1
+         )
+        ;; blog想法
+        ;;("i" "Billing" plain (file+function ,(concat org-path "billing.org") find-month-tree)
+        ;; "*  | %U | %^{类别} | %^{描述} | %^{金额} | " :kill-buffer t
+        ;; :empty-lines 1
+        ;; )
+        ("B" "create blog" plain (file ,(concat org-path "blog/" (format-time-string "%Y-%m-%d.org")))
+         ,(concat "#+TITLE: %^{标题}\n"
+                  "#+TAGS: %^{标签}\n"
+                  "#+SETUPFILE: index.org\n"
+                  "#+EMAIL: zhaochunjie@sourcod.com\n"
+                  "#+AUTHOR: willeam\n"
+                  "#+HTML: <div class=outline-2 id=\"meta\">\n"
+                  "| Author | {{{author}}} ({{{email}}})    |\n"
+                  "| Date   | {{{time(%Y-%m-%d %H:%ML%S)}}} |\n"
+                  "#+HTML: </div>\n"
+                  "#+options: ^:{}\n"
+                  "#+options: \\n:t\n"
+                  "#+TOC: headlines 3\n")
+         )
+        ;; 代码片段
+        ("s" "Code Snippet" entry (file ,(concat org-path "snippets.org"))
+         "* %?\t%^g\n#+BEGIN_SRC %^{language}\n\n#+END_SRC")
+        ;; 工作
+        ("w" "work" entry (file+headline ,(concat org-path "gtd.org") "work")
+         "* TODO [#B] %?\n  %i\n %U"
+         :empty-lines 1)
+        ;; 连接收藏夹
+        ("l" "links" entry (file ,(concat org-path "link.org"))
+         "* TODO [#C] %?\n  %i\n %a \n %U"
+         :empty-lines 1)
+        ;; 日记
+        ("j" "Journal Entry"
+         entry (file+datetree ,(concat org-path "journal.org"))
+         "* %U | 标题 -> %^{标题} | 天气 -> %^{天气} | 心情 -> %^{心情}\n%?"
+         :empty-lines 1
+         )
+        ;; 书
+        ("b" "Books" entry (file+headline ,(concat org-path "books.org") "book notes")
+         "* TODO [#D] %?\n  %i\n %U"
+         :empty-lines 1)
+        ;; projects
+        ("p" "projects")
+        ;; 天蓝科技
+        ("pt" "天蓝科技")
+        ("pt1" "zdqdp" entry (file+olp ,(concat org-path "project.org") "天蓝科技" "自动抢订票")
+         "* TODO [D] %?")
+
+        ("pz" "自己")
+        ("pz1" "WXBootstrap" entry (file+olp ,(concat org-path "project.org") "my" "WXBootstrap")
+         "* TODO [D] %?")
+
+
+        ("pw" "外部")
+        ("pw2" "富胜科技" entry (file+olp ,(concat org-path "project.org") "富胜科技") "* TODO [D] %?")
+
+        ("pw1" "古联")
+        ;; gulian
+        ("pw11" "gulian-app" entry (file+olp ,(concat org-path "project.org") "gulian" "app")
+         "* TODO [D] %?")
+        ;; gulian
+        ("pw12" "gulian-wx" entry (file+olp ,(concat org-path "project.org") "gulian" "wx")
+         "* TODO [D] %?")
+        ("P" "Password" entry (file ,(concat org-path "password.org.cpt"))
+         "* %U - %^{title} %^G\n\n  - 用户名: %^{用户名}\n  - 密码: %(get-or-create-password)"
+         :empty-lines 1
+         :kill-buffer t
+         )
+        )
+
+      )
+
+;; templete
+;; ("pw11" "gulian-app" entry (file+olp ,(concat org-path "project.org") "gulian" "app") "* TODO [D] %?")
+
+
+(setq org-agenda-custom-commands
+      '(
+        ("w" . "任务安排")
+        ("wa" "重要且紧急的任务" tags-todo "+PRIORITY=\"A\"")
+        ("wb" "重要且不紧急的任务" tags-todo "-Weekly-Monthly-Daily+PRIORITY=\"B\"")
+        ("wc" "不重要且紧急的任务" tags-todo "+PRIORITY=\"C\"")
+        ("wd" "不重要且不紧急的任务" tags-todo "+PRIORITY=\"D\"")
+        ("b" "Blog" tags-todo "BLOG")
+
+        ("p" . "项目安排")
+
+        ;; 外部项目
+        ("pg" tags-todo "PROJECT+WORK+CATEGORY=\"gulian\"")
+        ("pga" tags-todo "PROJECT+WORK+CATEGORY=\"gulian-wx\"")
+        ("pgw" tags-todo "PROJECT+WORK+CATEGORY=\"gulian-app\"")
+
+        ;; tlkj
+        ("pt" "天蓝科技" tags-todo "PROJECT+WORK+CATEGORY=\"tlkj\"")
+        ("pt1" "自动抢订票" tags-todo "PROJECT+WORK+CATEGORY=\"tlkj-zdqdp\"")
+        ("pt2" "codframe框架" tags-todo "PROJECT+WORK+CATEGORY=\"tlkj-codframe\"")
+        ("pt3" "爬虫项目" tags-todo "PROJECT+WORK+CATEGORY=\"tlkj-crawler\"")
+
+        ;; link
+        ("pl" tags-todo "PROJECT+DREAM+CATEGORY=\"willeam\"")
+        ("W" "Weekly Review"
+         ((stuck "") ;; review stuck projects as designated by org-stuck-projects
+          (tags-todo "PROJECT") ;; review all projects (assuming you use todo keywords to designate projects)
+          ))))
+
+;; find org-note
+(setq org-agenda-files (list
+                        ;; list 转string
+
+                        (mapconcat 'identity (directory-files (concat org-path "notes") t "\.org$")
+                                   ",")
+                        (mapconcat 'identity (directory-files (concat org-path "journal") t "\.org$")
+                                   ",")
+                        (mapconcat 'identity (directory-files (concat org-path "gtd") t "\.org$")
+                                   ",")
+                        (mapconcat 'identity (directory-files (concat org-path "books") t "\.org$")
+                                   ",")
+                        (mapconcat 'identity (directory-files (concat org-path "other") t "\.org$")
+                                   ",")
+
+                        (concat org-path "gtd.org")
+                        (concat org-path "notes.org")
+                        (concat org-path "books.org")
+                        (concat org-path "journal.org")))
+;; push
+;;(setq org-agenda-files ((push
+;;                         (mapconcat 'identity
+;;                                    (directory-files (concat org-path "notes") t "\.org$")
+;;                                    ",")
+;;                         normal)
+;;                        ))
+
+;;(setq org-agenda-files (list "~/workspace/org/gtd.org"
+;;                             "~/workspace/org/notes.org"
+;;                             "~/workspace/org/books.org"
+;;                             "~/workspace/org/journal.org"
+;;                             ))
+
+
+;; Screenshot
+;; 截图
+(defun sourcod/capture-screenshot (basename)
+  "Take a screenshot into a time stamped unique-named file in the
+  same directory as the org-buffer/markdown-buffer and insert a link to this file."
+  (interactive "sScreenshot name: ")
+  (if (equal basename "")
+      (setq basename (format-time-string "%Y%m%d_%H%M%S")))
+  (setq fullpath
+        ;; (file-name-directory (buffer-file-name)
+        (concat
+         (expand-file-name "~/workspace/org/images/")
+         (file-name-base (buffer-file-name))
+         "_"
+         basename))
+  (setq relativepath
+        (concat (file-name-base (buffer-file-name))
+                "_"
+                basename
+                ".png"))
+  (if (file-exists-p (file-name-directory fullpath))
+      (progn
+        (setq final-image-full-path (concat fullpath ".png"))
+        (call-process "screencapture" nil nil nil "-s" final-image-full-path)
+        (if (executable-find "convert")
+            (progn
+              (setq resize-command-str (format "convert %s -resize 800x600 %s" final-image-full-path final-image-full-path))
+              (shell-command-to-string resize-command-str)))
+        (sourcod//insert-org-or-md-img-link "http://image.sourcod.com/hexo/" relativepath))
+    (progn
+      (call-process "screencapture" nil nil nil "-s" (concat basename ".png"))
+      (sourcod//insert-org-or-md-img-link "./" (concat basename ".png"))))
+  (insert "\n"))
+
+;; 截图并最小画
+(defun sourcod/capture-screenshot-min (basename)
+  "Take a screenshot into a time stamped unique-named file in the
+  same directory as the org-buffer/markdown-buffer and insert a link to this file."
+  (interactive "sScreenshot name: ")
+  (if (equal basename "")
+      (setq basename (format-time-string "%Y%m%d_%H%M%S")))
+  (setq fullpath
+        ;; (file-name-directory (buffer-file-name)
+        (concat
+         (expand-file-name "~/workspace/org/images/")
+         (file-name-base (buffer-file-name))
+         "_"
+         basename))
+  (setq relativepath
+        (concat (file-name-base (buffer-file-name))
+                "_"
+                basename
+                ".png"))
+  (if (file-exists-p (file-name-directory fullpath))
+      (progn
+        (setq final-image-full-path (concat fullpath ".png"))
+        ;;(iconify-or-deiconify-frame)
+        ;; appleScript mini Item
+        (shell-command "/usr/bin/osascript  ~/workspace/scriptProjects/applescript/minimizeIterm.scpt")
+        (call-process "screencapture" nil nil nil "-s" final-image-full-path)
+        (if (executable-find "convert")
+            (progn
+              (setq resize-command-str (format "convert %s -resize 800x600 %s" final-image-full-path final-image-full-path))
+              (shell-command-to-string resize-command-str)))
+        (sourcod//insert-org-or-md-img-link "http://image.sourcod.com/hexo/" relativepath))
+    (progn
+      (call-process "screencapture" nil nil nil "-s" (concat basename ".png"))
+      (sourcod//insert-org-or-md-img-link "./" (concat basename ".png"))))
+  (insert "\n")
+  (shell-command "/usr/bin/osascript  ~/workspace/scriptProjects/applescript/maximizeIterm.scpt")
+  )
+
+(defun sourcod//insert-org-or-md-img-link (prefix imagename)
+  (if (equal (file-name-extension (buffer-file-name)) "org")
+      (insert (format "[[%s%s]]" prefix imagename))
+    (insert (format "![%s](%s%s)" imagename prefix imagename))))
+
+(global-set-key (kbd "C-x C-a") 'sourcod/capture-screenshot)
+
+
+;; 发布
+;;(require 'org-publish)
+
+(setq org-publish-project-alist
+      '(("org-notes"
+         :base-directory "~/workspace/org/blog"
+         :publishing-directory "~/workspace/org/blog/publish"
+         :section-numbers nil
+         :recursive t
+         :publishing-function org-html-publish-to-html
+         ;;org-html-publish-to-html
+         :headline-levels 4
+         :table-of-contents nil
+         :style "<link rel=\"stylesheet\" href=\"css/style.css\"  type=\"text/css\"/>"
+         :html-head "<link rel=\"stylesheet\" href=\"css/style.css\"  type=\"text/css\"/>"
+         :author "willeam"
+         :email "zhaochunjie@sourcod.com"
+         :auto-sitemap t
+         ;;:sitemap-filename "sitemap.org"
+         ;;:sitemap-title "我的wiki"
+         ;;:sitemap-sort-files anti-chronologically
+         ;;:sitemap-file-entry-format "%t" ; %d to output date, we don't need date here
+         )
+        ("org-static"
+         :base-directory "~/workspace/org/blog"
+         :base-extension "css\\|js\\|png\\|jpg\\|gif\\|pdf\\|mp3\\|ogg\\|swf|doc"
+         :publishing-directory "~/workspace/org/blog/publish"
+         :recursive t
+         :publishing-function org-publish-attachment
+         )
+        ("org" :components ("org-notes" "org-static"))
+
+        ;;
+        ;;("org-51xny-notes"
+        ;; :base-directory "~/workspace/org/blog"
+        ;; :publishing-directory "~/workspace/org/blog/publish"
+        ;; :section-numbers nil
+        ;; :recursive t
+        ;; :publishing-function org-html-publish-to-html
+        ;; ;;org-html-publish-to-html
+        ;; :headline-levels 4
+        ;; :table-of-contents nil
+        ;; :style "<link rel=\"stylesheet\" href=\"css/style.css\"  type=\"text/css\"/>"
+        ;; :html-head "<link rel=\"stylesheet\" href=\"css/style.css\"  type=\"text/css\"/>"
+        ;; :author "willeam"
+        ;; :email "zhaochunjie@sourcod.com"
+        ;; :auto-sitemap t
+        ;; ;;:sitemap-filename "sitemap.org"
+        ;; ;;:sitemap-title "我的wiki"
+        ;; ;;:sitemap-sort-files anti-chronologically
+        ;; ;;:sitemap-file-entry-format "%t" ; %d to output date, we don't need date here
+        ;; )
+        ;;("org-51xny-static"
+        ;; :base-directory "~/workspace/org/blog"
+        ;; :base-extension "css\\|js\\|png\\|jpg\\|gif\\|pdf\\|mp3\\|ogg\\|swf|doc"
+        ;; :publishing-directory "~/workspace/org/blog/publish"
+        ;; :recursive t
+        ;; :publishing-function org-publish-attachment
+        ;; )
+        ;;("org-51xny" :components ("org-51xny-notes" "org-51xny-static"))
+        )
+      )
+
+;; org-crypt
+;;(require-package 'org-crypt)
+(require 'org-crypt)
+
+;; 當被加密的部份要存入硬碟時，自動加密回去
+(org-crypt-use-before-save-magic)
+
+;; 設定要加密的 tag 標籤為 secret
+(setq org-crypt-tag-matcher "secret")
+
+;; 避免 secret 這個 tag 被子項目繼承 造成重複加密
+;; (但是子項目還是會被加密喔)
+(setq org-tags-exclude-from-inheritance (quote ("secret")))
+
+;; 用於加密的 GPG 金鑰
+;; 可以設定任何 ID 或是設成 nil 來使用對稱式加密 (symmetric encryption)
+(setq org-crypt-key "393B76F8FD82DC7B7A5E79AB3251A10218FB9FDB")
+
+(setq org-duration-format (quote h:mm))
 
 (require-package 'org-pomodoro)
 (setq org-pomodoro-keep-killed-pomodoro-time t)

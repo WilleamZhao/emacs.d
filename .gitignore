@@ -50,3 +50,5 @@ site-lisp/package/
 /magithub
 .cache/
 /forge-database.sqlite
+projectile.cache
+TAGS

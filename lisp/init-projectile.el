@@ -9,7 +9,12 @@
   (setq-default projectile-mode-line-prefix " Proj")
 
   (after-load 'projectile
-    (define-key projectile-mode-map (kbd "C-c p") 'projectile-command-map))
+    (define-key projectile-mode-map (kbd "C-c p") 'projectile-command-map)
+    (define-key projectile-mode-map [?\s-a] 'projectile-find-dir)
+    (define-key projectile-mode-map [?\s-p] 'projectile-switch-project)
+    (define-key projectile-mode-map [?\s-f] 'projectile-find-file)
+    (define-key projectile-mode-map [?\s-g] 'projectile-grep)
+    )
 
   (maybe-require-package 'ibuffer-projectile))
 

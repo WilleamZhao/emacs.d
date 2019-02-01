@@ -94,29 +94,31 @@
 (require 'init-erlang)
 (require 'init-javascript)
 (require 'init-php)
+;; password
+(require 'init-password)
 (require 'init-org)
 (require 'init-nxml)
 (require 'init-html)
 (require 'init-css)
 (require 'init-haml)
 (require 'init-http)
-(require 'init-python)
-(require 'init-haskell)
+;;(require 'init-python)
+;;(require 'init-haskell)
 (require 'init-elm)
-(require 'init-purescript)
-(require 'init-ruby)
-(require 'init-rails)
+;;(require 'init-purescript)
+;;(require 'init-ruby)
+;;(require 'init-rails)
 (require 'init-sql)
 (require 'init-rust)
 (require 'init-toml)
 (require 'init-yaml)
 (require 'init-docker)
 (require 'init-terraform)
-;;(require 'init-nix)
+(require 'init-nix)
 (maybe-require-package 'nginx-mode)
 
 (require 'init-paredit)
-(require 'init-lisp)
+;;(require 'init-lisp)
 (require 'init-slime)
 (require 'init-clojure)
 (require 'init-clojure-cider)
@@ -130,6 +132,7 @@
 (require 'init-folding)
 (require 'init-dash)
 
+(require 'init-httpd)
 ;;(require 'init-twitter)
 ;; (require 'init-mu)
 (require 'init-ledger)
@@ -179,7 +182,7 @@
 ;;----------------------------------------------------------------------------
 (require 'init-local nil t)
 
-
+(require 'init-clipboard)
 
 (provide 'init)
 
