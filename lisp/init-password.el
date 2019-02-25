@@ -1,4 +1,4 @@
-(defun random-alphanum ()
+[<8;9;23m](defun random-alphanum ()
   (let* ((charset "abcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()")
          (x (random 46)))
     (char-to-string (elt charset x))))

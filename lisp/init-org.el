@@ -407,10 +407,13 @@ typical word processor."
       (setq end (save-excursion (org-end-of-subtree t t))))
     (org-end-of-subtree)))
 
+;; protocol
+(require 'org-protocol)
+
 ;; dynamic href
 (setq org-capture-templates
       `(("c" "Contacts" table-line (file ,(concat org-path "contact.org"))
-               "| %U | %^{姓名} | %^{手机号}| %^{邮箱} |")
+         "| %U | %^{姓名} | %^{主手机号} | %^{次手机号} | %^{邮箱} | %^{公司} | %^{标签} | %^{备注} | %^{生日} |")
         ("t" "GTD")
         ("ta" "Tasks" entry (file+headline ,(concat org-path "gtd.org") "Tasks")
          "* TODO [#B] %?\n  %i\n"
@@ -421,15 +424,20 @@ typical word processor."
          :empty-lines 1
          )
         ;; 临时笔记
-        ("n" "notes" entry (file+headline ,(concat org-path "notes.org") "Quick notes")
+        ("n" "notes")
+        ("nc" "名言警句" entry (file+headline ,(concat org-path "notes.org") "catchphrase")
          "* %?\n  %i\n %U"
          :empty-lines 1
          )
-        ;; blog想法
-        ;;("i" "Billing" plain (file+function ,(concat org-path "billing.org") find-month-tree)
-        ;; "*  | %U | %^{类别} | %^{描述} | %^{金额} | " :kill-buffer t
-        ;; :empty-lines 1
-        ;; )
+        ("nn" "notes" entry (file+headline ,(concat org-path "notes.org") "Quick notes")
+         "* %?\n  %i\n %U"
+         :empty-lines 1
+         )
+        ;; 记账
+        ("i" "Billing" table-line (file+datetree+prompt ,(concat org-path "billing.org"))
+         "| %U | %^{类别} | %^{描述} | %^{金额} | " :kill-buffer t
+         :empty-lines 1
+         )
         ("B" "create blog" plain (file ,(concat org-path "blog/" (format-time-string "%Y-%m-%d.org")))
          ,(concat "#+TITLE: %^{标题}\n"
                   "#+TAGS: %^{标签}\n"
@@ -465,6 +473,8 @@ typical word processor."
         ("b" "Books" entry (file+headline ,(concat org-path "books.org") "book notes")
          "* TODO [#D] %?\n  %i\n %U"
          :empty-lines 1)
+        ;; protocol
+
         ;; projects
         ("p" "projects")
         ;; 天蓝科技
@@ -722,7 +732,8 @@ typical word processor."
 
 ;; 用於加密的 GPG 金鑰
 ;; 可以設定任何 ID 或是設成 nil 來使用對稱式加密 (symmetric encryption)
-(setq org-crypt-key "393B76F8FD82DC7B7A5E79AB3251A10218FB9FDB")
+;;(setq org-crypt-key "393B76F8FD82DC7B7A5E79AB3251A10218FB9FDB")
+(setq org-crypt-key "nil")
 
 (setq org-duration-format (quote h:mm))
 

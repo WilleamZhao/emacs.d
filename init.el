@@ -138,6 +138,8 @@
 (require 'init-ledger)
 ;; Extra packages which don't require any configuration
 
+(require 'init-latex)
+
 (require 'init-server)
 
 (require-package 'gnuplot)
