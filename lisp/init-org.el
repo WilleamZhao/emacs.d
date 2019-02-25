@@ -732,8 +732,8 @@ typical word processor."
 
 ;; 用於加密的 GPG 金鑰
 ;; 可以設定任何 ID 或是設成 nil 來使用對稱式加密 (symmetric encryption)
-;;(setq org-crypt-key "393B76F8FD82DC7B7A5E79AB3251A10218FB9FDB")
-(setq org-crypt-key "nil")
+(setq org-crypt-key "393B76F8FD82DC7B7A5E79AB3251A10218FB9FDB")
+;;(setq org-crypt-key "nil")
 
 (setq org-duration-format (quote h:mm))
 

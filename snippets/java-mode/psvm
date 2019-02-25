@@ -1,0 +1,7 @@
+# -*- mode: snippet -*-
+# name: java main function
+# key: psvm
+# --
+public static void main(Object[] objs){
+   $0
+}
