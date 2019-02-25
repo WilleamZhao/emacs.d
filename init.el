@@ -140,6 +140,9 @@
 
 (require 'init-latex)
 
+;; yasnippet
+(require 'init-yasnippet)
+
 (require 'init-server)
 
 (require-package 'gnuplot)

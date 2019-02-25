@@ -517,10 +517,10 @@ typical word processor."
         ("wb" "重要且不紧急的任务" tags-todo "-Weekly-Monthly-Daily+PRIORITY=\"B\"")
         ("wc" "不重要且紧急的任务" tags-todo "+PRIORITY=\"C\"")
         ("wd" "不重要且不紧急的任务" tags-todo "+PRIORITY=\"D\"")
+
         ("b" "Blog" tags-todo "BLOG")
 
         ("p" . "项目安排")
-
         ;; 外部项目
         ("pg" tags-todo "PROJECT+WORK+CATEGORY=\"gulian\"")
         ("pga" tags-todo "PROJECT+WORK+CATEGORY=\"gulian-wx\"")
@@ -533,7 +533,7 @@ typical word processor."
         ("pt3" "爬虫项目" tags-todo "PROJECT+WORK+CATEGORY=\"tlkj-crawler\"")
 
         ;; link
-        ("pl" tags-todo "PROJECT+DREAM+CATEGORY=\"willeam\"")
+        ("pl" tags-todo "PROJECT+DREAM+CATEGORY=\"link\"")
         ("W" "Weekly Review"
          ((stuck "") ;; review stuck projects as designated by org-stuck-projects
           (tags-todo "PROJECT") ;; review all projects (assuming you use todo keywords to designate projects)
@@ -545,7 +545,7 @@ typical word processor."
 
                         (mapconcat 'identity (directory-files (concat org-path "notes") t "\.org$")
                                    ",")
-                        (mapconcat 'identity (directory-files (concat org-path "journal") t "\.org$")
+                        (mapconcat 'Gidentity (directory-files (concat org-path "journal") t "\.org$")
                                    ",")
                         (mapconcat 'identity (directory-files (concat org-path "gtd") t "\.org$")
                                    ",")
@@ -601,7 +601,7 @@ typical word processor."
             (progn
               (setq resize-command-str (format "convert %s -resize 800x600 %s" final-image-full-path final-image-full-path))
               (shell-command-to-string resize-command-str)))
-        (sourcod//insert-org-or-md-img-link "http://image.sourcod.com/hexo/" relativepath))
+        (sourcod//insert-org-or-md-img-link "http://oss.sourcod.com/org/" relativepath))
     (progn
       (call-process "screencapture" nil nil nil "-s" (concat basename ".png"))
       (sourcod//insert-org-or-md-img-link "./" (concat basename ".png"))))

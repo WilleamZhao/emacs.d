@@ -43,7 +43,7 @@
     (advice-add 'frame-set-background-mode :after (lambda (&rest args) (dimmer-process-all)))))
 
 ;; show number line
-(global-linum-mode t)
+;;(global-linum-mode t)
 
 ;; powerline-start
 (require-package 'powerline)

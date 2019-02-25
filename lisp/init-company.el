@@ -24,24 +24,66 @@
   (when (maybe-require-package 'company-quickhelp)
     (add-hook 'after-init-hook 'company-quickhelp-mode)))
 
+(defun check-expansion ()
+  (save-excursion
+    (if (looking-at "\\_>") t
+      (backward-char 1)
+      (if (looking-at "\\.") t
+        (backward-char 1)
+        (if (looking-at "->") t nil)))))
+
+(defun do-yas-expand ()
+  (let ((yas/fallback-behavior 'return-nil))
+    (yas/expand)))
+
+(defun tab-indent-or-complete ()
+  (interactive)
+  (if (minibufferp)
+      (minibuffer-complete)
+    (if (or (not yas/minor-mode)
+            (null (do-yas-expand)))
+        (if (check-expansion)
+            (company-complete-common)
+          (indent-for-tab-command)))))
+
+(global-set-key [tab] 'tab-indent-or-complete)
+
 ;; Suspend page-break-lines-mode while company menu is active
 ;; (see https://github.com/company-mode/company-mode/issues/416)
-(after-load 'company
-  (after-load 'page-break-lines
-    (defvar-local sanityinc/page-break-lines-on-p nil)
+;;(after-load 'company
+;;  (after-load 'page-break-lines
+;;    (defvar-local sanityinc/page-break-lines-on-p nil)
 
-    (defun sanityinc/page-break-lines-disable (&rest ignore)
-      (when (setq sanityinc/page-break-lines-on-p (bound-and-true-p page-break-lines-mode))
-        (page-break-lines-mode -1)))
+;;    (defun sanityinc/page-break-lines-disable (&rest ignore)
+;;      (when (setq sanityinc/page-break-lines-on-p (bound-and-true-p page-break-lines-mode))
+;;        (page-break-lines-mode -1)))
 
-    (defun sanityinc/page-break-lines-maybe-reenable (&rest ignore)
-      (when sanityinc/page-break-lines-on-p
-        (page-break-lines-mode 1)))
+;;    (defun sanityinc/page-break-lines-maybe-reenable (&rest ignore)
+;;      (when sanityinc/page-break-lines-on-p
+;;        (page-break-lines-mode 1)))
 
-    (add-hook 'company-completion-started-hook 'sanityinc/page-break-lines-disable)
-    (add-hook 'company-after-completion-hook 'sanityinc/page-break-lines-maybe-reenable)))
+;;    (add-hook 'company-completion-started-hook 'sanityinc/page-break-lines-disable)
+;;    (add-hook 'company-after-completion-hook 'sanityinc/page-break-lines-maybe-reenable)))
 
+(advice-add 'company-complete-common :before (lambda ()
+                                (setq my-company-point (point))))
+(advice-add 'company-complete-common :after (lambda ()
+                                              (when (equal my-company-point (point)) (yas-expand))))
 
+;;(add-hook ‘after-init-hook ‘global-company-mode)
+;;(setq company-idle-delay 0.5)
+;; weight by frequency
+;;(setq company-transformers ‘(company-sort-by-occurrence))
+
+;;(defvar company-mode/enable-yas t "Enable yasnippet for all backends.")
+
+;;(defun company-mode/backend-with-yas (backend)
+;;  (if (or (not company-mode/enable-yas) (and (listp backend)    (member ‘company-yasnippet backend)))
+;;      backend
+;;(append (if (consp backend) backend (list backend))
+;;        ‘(:with company-yasnippet))))
+
+;;(setq company-backends (mapcar #‘company-mode/backend-with-yas company-backends))
 
 (provide 'init-company)
 ;;; init-company.el ends here
