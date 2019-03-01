@@ -2,6 +2,7 @@
 ;;; Commentary:
 ;;; Code:
 
+;; projectile
 (when (maybe-require-package 'projectile)
   (add-hook 'after-init-hook 'projectile-mode)
 
@@ -15,9 +16,9 @@
     (define-key projectile-mode-map [?\s-f] 'projectile-find-file)
     (define-key projectile-mode-map [?\s-g] 'projectile-grep)
     )
-
   (maybe-require-package 'ibuffer-projectile))
-
-
+;;(ffip-project-root)
+;;(projectile-project-p)
+;;(projectile-project-dirs)
 (provide 'init-projectile)
 ;;; init-projectile.el ends here

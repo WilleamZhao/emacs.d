@@ -13,7 +13,13 @@
   (add-hook 'sgml-mode-hook (lambda () (tagedit-mode 1))))
 
 (add-auto-mode 'html-mode "\\.\\(jsp\\|tmpl\\|html\\|htm\\)\\'")
-
+;;(add-hook 'html-mode-hook
+;;          (lambda ()
+;;            ;;(google-set-c-style)
+;;            (setq tab-width 2)
+;;            (setq c-basic-offset 2)
+;;            )
+;;          )
 
 (provide 'init-html)
 ;;; init-html.el ends here

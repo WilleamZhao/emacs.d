@@ -1,0 +1,13 @@
+# -*- mode: snippet -*-
+# name: copyright
+# key: copyright
+# --
+/*
+ * Copyright (c) 2018-2019.
+ * Beijing sky blue technology co., LTD.
+ * All rights reserved
+ *
+ * author: sourcod
+ * github: https://github.com/WilleamZhao
+ * site：http://codframe.com
+ */

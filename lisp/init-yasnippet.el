@@ -9,7 +9,7 @@
 ;;(define-key yas-minor-mode-map (kbd "C-c k") 'yas-expand)
 
 (setq yas-snippet-dirs
-      '("~/.emacs.d/snippets/java/"                 ;; personal snippets
+      '("~/.emacs.d/snippets/"                 ;; personal snippets
         "~/.emacs.d/elpa-26.1/yasnippet-snippets-20190202.2145/snippets/"
         ))
 (yas-global-mode t)

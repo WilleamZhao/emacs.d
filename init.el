@@ -71,6 +71,10 @@
 (require 'init-ivy)
 ;;(require 'init-helm)
 (require 'init-hippie-expand)
+
+;; yasnippet
+(require 'init-yasnippet)
+
 (require 'init-company)
 (require 'init-windows)
 (require 'init-sessions)
@@ -83,6 +87,8 @@
 (require 'init-darcs)
 (require 'init-git)
 (require 'init-github)
+
+(require 'init-tree)
 
 (require 'init-projectile)
 
@@ -98,9 +104,12 @@
 (require 'init-password)
 (require 'init-org)
 (require 'init-nxml)
-(require 'init-html)
+;; (require 'init-html)
 (require 'init-css)
 (require 'init-haml)
+
+(require 'init-web)
+
 (require 'init-http)
 ;;(require 'init-python)
 ;;(require 'init-haskell)
@@ -140,9 +149,8 @@
 
 (require 'init-latex)
 
-;; yasnippet
-(require 'init-yasnippet)
-
+;;java
+(require 'init-java)
 (require 'init-server)
 
 (require-package 'gnuplot)

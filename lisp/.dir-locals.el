@@ -1,5 +1,1 @@
-;;; Directory Local Variables
-;;; For more information see (info "(emacs) Directory Variables")
-
-((emacs-lisp-mode
-  (no-byte-compile . t)))
+((nil (ffip-project-root . "/Users/sourcod/.emacs.d/lisp/")) (emacs-lisp-mode (no-byte-compile . t)))

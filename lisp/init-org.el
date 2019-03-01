@@ -39,7 +39,7 @@
                                    (shell-quote-argument org-ditaa-jar-path)))))
       (when (file-exists-p zip-temp)
         (delete-file zip-temp)))))
-
+;; 流程图
 (after-load 'ob-ditaa
   (unless (and (boundp 'org-ditaa-jar-path)
                (file-exists-p org-ditaa-jar-path))
@@ -48,7 +48,7 @@
       (setq org-ditaa-jar-path (expand-file-name jar-name (file-name-directory user-init-file)))
       (unless (file-exists-p org-ditaa-jar-path)
         (sanityinc/grab-ditaa url jar-name)))))
-
+;; uml图
 (after-load 'ob-plantuml
   (let ((jar-name "plantuml.jar")
         (url "http://jaist.dl.sourceforge.net/project/plantuml/plantuml.jar"))
@@ -165,7 +165,7 @@ typical word processor."
 
 ;; 多状态工作流程
 (setq org-todo-keywords
-      (quote ((sequence "TODO(t)" "NEXT(n)" "|" "DONE(d!/!)")
+      (quote ((sequence "TODO(t)" "NEXT(n)" "WAITTING(w)" "SOMEDAY(s)" "|" "DONE(d!/!)" "ABORT(a@/!)")
               (sequence "PROJECT(p)" "|" "DONE(d!/!)" "CANCELLED(c@/!)")
               (sequence "WAITING(w@/!)" "DELEGATED(e!)" "HOLD(h)" "|" "CANCELLED(c@/!)")))
       org-todo-repeat-to-state "NEXT")
@@ -261,6 +261,20 @@ typical word processor."
             ;; (tags-todo "-NEXT"
             ;;            ((org-agenda-overriding-header "All other TODOs")
             ;;             (org-match-list-sublevels t)))
+            (tags-todo "-noAgenda"
+                       ((org-agenda-overriding-header "asdasdasd")
+                        (org-agenda-skip-function
+                         '(lambda ()
+                            (or (org-agenda-skip-subtree-if 'todo '("WAITING"))
+                                (org-agenda-skip-entry-if 'nottodo '("HOLD"))
+                                )
+                            )
+                         (org-tags-match-list-sublevels nil)
+                         (org-agenda-sorting-strategy
+                          '(category-keep))
+                         )
+                        )
+                       )
             )))))
 
 
@@ -303,13 +317,58 @@ typical word processor."
   (define-key org-clock-mode-line-map [header-line mouse-1] 'org-clock-menu))
 
 
-(when (and *is-a-mac* (file-directory-p "/Applications/org-clock-statusbar.app"))
-  (add-hook 'org-clock-in-hook
-            (lambda () (call-process "/usr/bin/osascript" nil 0 nil "-e"
-                                (concat "tell application \"org-clock-statusbar\" to clock in \"" org-clock-current-task "\""))))
-  (add-hook 'org-clock-out-hook
-            (lambda () (call-process "/usr/bin/osascript" nil 0 nil "-e"
-                                "tell application \"org-clock-statusbar\" to clock out"))))
+;;(when (and *is-a-mac* (file-directory-p "/Applications/org-clock-statusbar.app"))
+;;  (add-hook 'org-clock-in-hook
+;;            (lambda () (call-process "/usr/bin/osascript" nil 0 nil "-e"
+;;                                (concat "tell application \"org-clock-statusbar\" to clock in \"" org-clock-current-task "\""))))
+;;  (add-hook 'org-clock-out-hook
+;;            (lambda () (call-process "/usr/bin/osascript" nil 0 nil "-e"
+;;                                "tell application \"org-clock-statusbar\" to clock out"))))
+
+;; tags
+(setq org-tag-alist '(
+                      ("@read" . nil)
+                      (:grouptags . nil)
+                      ("@read_book" . nil)
+                      ("@read_ebook" . nil)
+                      (:newline . nil)
+
+                      ("@watch" . nil)
+                      (:grouptags . nil)
+                      ("@watch_movie" . nil)
+                      ("@watch_study" . nil)
+
+                      (:newline . nil)
+                      ;; 分组只能选组内一个
+                      (:startgroup . nil)
+                      ("@gtd" . nil)
+                      (:grouptags . nil)
+                      ("@Office" . ?o)
+                      ("@SomedayMaybe" . ?m)
+                      ("@Agendas" . ?a)
+                      ("@Anywhere" .?A)
+                      ("@phone" . ?p)
+                      ("@Calls" . ?c)
+                      ("@Computer". ?C)
+                      ("@Errands" . ?e)
+                      ("@Home" . ?h)
+                      ("@Shopping" . ?s)
+                      (:endgroup . nil)
+                      ("@Project" . ?p)
+                      (:grouptags . nil)
+                      ("gulian" . nil)
+                      ("jieli" . nil)
+                      ("bjwps" . nil)
+                      ("noAgenda" . nil)
+                      ))
+
+;;(setq org-tag-alist '((:startgroup . nil)
+;;                      ("@work" . ?w) ("@home" . ?h)
+;;                      ("@tennisclub" . ?t)
+;;                      (:endgroup . nil)
+;;                      ("laptop" . ?l) ("pc" . ?p))
+
+
 
 ;; bullets
 (require-package 'org-bullets)
@@ -337,6 +396,7 @@ typical word processor."
 ;;    (require 'ox-publish)
 ;;    ))
 
+;; 默认org路径
 (setq org-path "/Users/sourcod/workspace/org/")
 (setq org-note-path  (concat org-path "notes/"))
 
@@ -380,6 +440,7 @@ typical word processor."
 ;;         "* TODO [#D] %?\n  %i\n %U"
 ;;         :empty-lines 1)
 ;;        ))
+
 ;; billing
 (defun get-year-and-month ()
   (list (format-time-string "%Y年") (format-time-string "%m月")))
@@ -480,11 +541,11 @@ typical word processor."
         ;; 天蓝科技
         ("pt" "天蓝科技")
         ("pt1" "zdqdp" entry (file+olp ,(concat org-path "project.org") "天蓝科技" "自动抢订票")
-         "* TODO [D] %?")
+         "* TODO [#D] %?")
 
         ("pz" "自己")
         ("pz1" "WXBootstrap" entry (file+olp ,(concat org-path "project.org") "my" "WXBootstrap")
-         "* TODO [D] %?")
+         "* TODO [#D] %?")
 
 
         ("pw" "外部")
@@ -493,10 +554,10 @@ typical word processor."
         ("pw1" "古联")
         ;; gulian
         ("pw11" "gulian-app" entry (file+olp ,(concat org-path "project.org") "gulian" "app")
-         "* TODO [D] %?")
+         "* TODO [#D] %?")
         ;; gulian
         ("pw12" "gulian-wx" entry (file+olp ,(concat org-path "project.org") "gulian" "wx")
-         "* TODO [D] %?")
+         "* TODO [#D] %?")
         ("P" "Password" entry (file ,(concat org-path "password.org.cpt"))
          "* %U - %^{title} %^G\n\n  - 用户名: %^{用户名}\n  - 密码: %(get-or-create-password)"
          :empty-lines 1
@@ -521,13 +582,15 @@ typical word processor."
         ("b" "Blog" tags-todo "BLOG")
 
         ("p" . "项目安排")
+        ("pg" . "外部项目")
         ;; 外部项目
-        ("pg" tags-todo "PROJECT+WORK+CATEGORY=\"gulian\"")
-        ("pga" tags-todo "PROJECT+WORK+CATEGORY=\"gulian-wx\"")
-        ("pgw" tags-todo "PROJECT+WORK+CATEGORY=\"gulian-app\"")
+        ("pg0" tags-todo "PROJECT+WORK+CATEGORY=\"gulian\"")
+        ("pg1" tags-todo "PROJECT+WORK+CATEGORY=\"gulian-wx\"")
+        ("pg2" tags-todo "PROJECT+WORK+CATEGORY=\"gulian-app\"")
 
         ;; tlkj
-        ("pt" "天蓝科技" tags-todo "PROJECT+WORK+CATEGORY=\"tlkj\"")
+        ("pt" . "天蓝科技")
+        ("pt0" "天蓝科技" tags-todo "PROJECT+WORK+CATEGORY=\"tlkj\"")
         ("pt1" "自动抢订票" tags-todo "PROJECT+WORK+CATEGORY=\"tlkj-zdqdp\"")
         ("pt2" "codframe框架" tags-todo "PROJECT+WORK+CATEGORY=\"tlkj-codframe\"")
         ("pt3" "爬虫项目" tags-todo "PROJECT+WORK+CATEGORY=\"tlkj-crawler\"")
@@ -558,6 +621,9 @@ typical word processor."
                         (concat org-path "notes.org")
                         (concat org-path "books.org")
                         (concat org-path "journal.org")))
+;;debug
+;;(setq org-agenda-files nil)
+
 ;; push
 ;;(setq org-agenda-files ((push
 ;;                         (mapconcat 'identity
@@ -575,9 +641,8 @@ typical word processor."
 
 ;; Screenshot
 ;; 截图
-(defun sourcod/capture-screenshot (basename)
-  "Take a screenshot into a time stamped unique-named file in the
-  same directory as the org-buffer/markdown-buffer and insert a link to this file."
+(defun sourcod/capture-screenshot(basename)
+  "Take a screenshot into a time stamped unique-named file in the same directory as the org-buffer/markdown-buffer and insert a link to this file. basename filename"
   (interactive "sScreenshot name: ")
   (if (equal basename "")
       (setq basename (format-time-string "%Y%m%d_%H%M%S")))
@@ -737,8 +802,17 @@ typical word processor."
 
 (setq org-duration-format (quote h:mm))
 
+;; org-pomodoro
 (require-package 'org-pomodoro)
 (setq org-pomodoro-keep-killed-pomodoro-time t)
+;; 一个番茄钟时间
+(setq org-pomodoro-length 40)
+;; 小憩时间
+(setq org-pomodoro-short-break-length 5)
+;; 是否播放嘀嗒声音
+(setq org-pomodoro-ticking-sound-p 1)
+
+
 (after-load 'org-agenda
   (define-key org-agenda-mode-map (kbd "P") 'org-pomodoro))
 
