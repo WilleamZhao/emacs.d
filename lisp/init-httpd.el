@@ -8,6 +8,8 @@
   (insert "hello, " (file-name-nondirectory path)))
 
 ;;(defservlet test "text/plain;charset=utf-8" (path)
-  ;;(insert "测试成功!") (file-name-nondirectory path))
+;;(insert "测试成功!") (file-name-nondirectory path))
+
+
 (httpd-start)
 (provide 'init-httpd)

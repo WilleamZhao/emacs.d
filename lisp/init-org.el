@@ -165,14 +165,25 @@ typical word processor."
 
 ;; 多状态工作流程
 (setq org-todo-keywords
-      (quote ((sequence "TODO(t)" "NEXT(n)" "WAITTING(w)" "SOMEDAY(s)" "|" "DONE(d!/!)" "ABORT(a@/!)")
+      (quote ((sequence "TODO(t)" "NEXT(n)" "WAITING(w)" "SOMEDAY(s)" "|" "DONE(d!/!)" "ABORT(a@/!)")
               (sequence "PROJECT(p)" "|" "DONE(d!/!)" "CANCELLED(c@/!)")
               (sequence "WAITING(w@/!)" "DELEGATED(e!)" "HOLD(h)" "|" "CANCELLED(c@/!)")))
       org-todo-repeat-to-state "NEXT")
 
+;; 状态颜色
 (setq org-todo-keyword-faces
-      (quote (("NEXT" :inherit warning)
-              ("PROJECT" :inherit font-lock-string-face))))
+      (quote (("TODO" :foreground "red" :weight bold)
+
+              ("NEXT" :foreground "blue" :weight bold)
+              ("DONE" :foreground "forest green" :weight bold)
+              ("WAITING" :foreground "orange" :weight bold)
+              ("HOLD" :foreground "magenta" :weight bold)
+              ("CANCELLED" :foreground "forest green" :weight bold)
+              ("MEETING" :foreground "forest green" :weight bold)
+              ("PHONE" :foreground "forest green" :weight bold)
+              ("PROJECT" :inherit font-lock-string-face)
+
+              )))
 
 
 ;;; Agenda views
@@ -200,6 +211,55 @@ typical word processor."
         `(("N" "Notes" tags "NOTE"
            ((org-agenda-overriding-header "Notes")
             (org-tags-match-list-sublevels t)))
+          ("c" "Calendar" agenda ""
+           ((org-agenda-span 7)                          ;; [1]
+            (org-agenda-start-on-weekday 0)               ;; [2]
+            (org-agenda-time-grid nil)
+            (org-agenda-repeating-timestamp-show-all t)   ;; [3]
+            (org-agenda-entry-types '(:timestamp :sexp))
+            (org-deadline-warning-days 60)
+            )
+           )
+          ("d" "Upcoming deadlines" agenda ""
+           ((org-agenda-time-grid nil)
+            (org-agenda-span 10)
+            (org-deadline-warning-days 365)        ;; [1]
+            ;; (org-deadline-warning-days 60)
+            ;; (org-agenda-time-grid nil)
+            (org-agenda-entry-types '(:deadline))  ;; [2]
+            )
+           )
+          ("j" "Weekly schedule" agenda ""
+           ((org-agenda-span 7)           ;; agenda will start in week view
+            (org-agenda-start-on-weekday 0)
+            (org-agenda-time-grid nil)
+            (org-agenda-repeating-timestamp-show-all t)   ;; ensures that repeating events appear on all relevant dates
+            (org-agenda-skip-function '(org-agenda-skip-entry-if 'deadline 'scheduled))))
+          ;; other commands go here
+
+          ("P" "Printed agenda"
+            ((agenda "" ((org-agenda-span 7)                      ;; overview of appointments
+                         (org-agenda-start-on-weekday nil)         ;; calendar begins today
+                         (org-agenda-repeating-timestamp-show-all t)
+                         (org-agenda-entry-types '(:timestamp :sexp))))
+             (agenda "" ((org-agenda-span 1)                      ; daily agenda
+                         (org-deadline-warning-days 7)            ; 7 day advanced warning for deadlines
+                         (org-agenda-todo-keyword-format "[ ]")
+                         (org-agenda-scheduled-leaders '("" ""))
+                         (org-agenda-prefix-format "%t%s")))
+             (todo "TODO"                                          ;; todos sorted by context
+                   ((org-agenda-prefix-format "[ ] %T: ")
+                    (org-agenda-sorting-strategy '(tag-up priority-down))
+                    (org-agenda-todo-keyword-format "")
+                    (org-agenda-overriding-header "\nTasks by Context\n------------------\n"))))
+            ((org-agenda-with-colors nil)
+             (org-agenda-compact-blocks t)
+             (org-agenda-remove-tags t)
+             (ps-number-of-columns 2)
+             (ps-landscape-mode t))
+            ("~/agenda.ps"))
+
+
           ("g" "GTD"
            ((agenda "" nil)
             (tags "INBOX"
@@ -275,7 +335,8 @@ typical word processor."
                          )
                         )
                        )
-            )))))
+            )
+           ))))
 
 
 (add-hook 'org-agenda-mode-hook 'hl-line-mode)
@@ -490,12 +551,12 @@ typical word processor."
          "* %?\n  %i\n %U"
          :empty-lines 1
          )
-        ("nn" "notes" entry (file+headline ,(concat org-path "notes.org") "Quick notes")
+        ("nn" "笔记" entry (file+headline ,(concat org-path "notes.org") "Quick notes")
          "* %?\n  %i\n %U"
          :empty-lines 1
          )
         ;; 记账
-        ("i" "Billing" table-line (file+datetree+prompt ,(concat org-path "billing.org"))
+        ("i" "记账" table-line (file+datetree+prompt ,(concat org-path "billing.org"))
          "| %U | %^{类别} | %^{描述} | %^{金额} | " :kill-buffer t
          :empty-lines 1
          )
@@ -558,6 +619,11 @@ typical word processor."
         ;; gulian
         ("pw12" "gulian-wx" entry (file+olp ,(concat org-path "project.org") "gulian" "wx")
          "* TODO [#D] %?")
+
+        ;; 会议笔记
+        ("m" "Meeting" entry (file+headline ,(concat org-path "notes.org") "Meeting")
+         "* MEETING with %? :MEETING:\n%U" :clock-in t :clock-resume t)
+
         ("P" "Password" entry (file ,(concat org-path "password.org.cpt"))
          "* %U - %^{title} %^G\n\n  - 用户名: %^{用户名}\n  - 密码: %(get-or-create-password)"
          :empty-lines 1
@@ -594,6 +660,10 @@ typical word processor."
         ("pt1" "自动抢订票" tags-todo "PROJECT+WORK+CATEGORY=\"tlkj-zdqdp\"")
         ("pt2" "codframe框架" tags-todo "PROJECT+WORK+CATEGORY=\"tlkj-codframe\"")
         ("pt3" "爬虫项目" tags-todo "PROJECT+WORK+CATEGORY=\"tlkj-crawler\"")
+
+
+        ("k" "todo" tags-todo "work")
+
 
         ;; link
         ("pl" tags-todo "PROJECT+DREAM+CATEGORY=\"link\"")

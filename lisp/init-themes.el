@@ -45,6 +45,10 @@
 ;; show number line
 ;;(global-linum-mode t)
 
+;; cursor-type
+(setq-default cursor-type 'bar)
+;; (setq cursor-type 'bar)
+
 ;; powerline-start
 (require-package 'powerline)
 (require 'powerline)
