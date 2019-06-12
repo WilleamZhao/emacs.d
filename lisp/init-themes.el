@@ -47,6 +47,7 @@
 
 ;; cursor-type
 (setq-default cursor-type 'bar)
+
 ;; (setq cursor-type 'bar)
 
 ;; powerline-start

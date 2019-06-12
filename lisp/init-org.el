@@ -165,12 +165,27 @@ typical word processor."
 
 ;; 多状态工作流程
 (setq org-todo-keywords
-      (quote ((sequence "TODO(t)" "NEXT(n)" "WAITING(w)" "SOMEDAY(s)" "|" "DONE(d!/!)" "ABORT(a@/!)")
+      (quote ((sequence "TODO(t)" "NEXT(n)" "WAITING(w)" "MAYBE(m)" "|" "DONE(d!/!)" "ABORT(a@/!)")
               (sequence "PROJECT(p)" "|" "DONE(d!/!)" "CANCELLED(c@/!)")
               (sequence "WAITING(w@/!)" "DELEGATED(e!)" "HOLD(h)" "|" "CANCELLED(c@/!)")))
       org-todo-repeat-to-state "NEXT")
 
+;; 改变状态触发标签变化
+(setq org-todo-state-tags-triggers
+      (quote (("CANCELLED" ("HOLD") ("WAITING") ("CANCELLED" . t))
+              ("WAITING" ("HOLD") ("CANCELLED") ("WAITING" . t))
+              ("HOLD" ("WAITING") ("CANCELLED") ("HOLD" . t))
+              (done ("WAITING") ("HOLD"))
+              ("TODO" ("WAITING") ("CANCELLED") ("HOLD"))
+              ("NEXT" ("WAITING") ("CANCELLED") ("HOLD"))
+              ("DONE" ("WAITING") ("CANCELLED") ("HOLD")))))
+
 ;; 状态颜色
+;; 调试好久的颜色，效果超赞！ todo keywords 增加背景色
+;; (setf org-todo-keyword-faces '(("TODO" . (:foreground "white" :background "#95A5A6"   :weight bold))
+;;                               ("HAND" . (:foreground "white" :background "#2E8B57"  :weight bold))
+;;                               ("DONE" . (:foreground "white" :background "#3498DB" :weight bold))))
+
 (setq org-todo-keyword-faces
       (quote (("TODO" :foreground "red" :weight bold)
 
@@ -179,165 +194,444 @@ typical word processor."
               ("WAITING" :foreground "orange" :weight bold)
               ("HOLD" :foreground "magenta" :weight bold)
               ("CANCELLED" :foreground "forest green" :weight bold)
+              ("MAYBE" :foreground "grey" :weight bold)
+
               ("MEETING" :foreground "forest green" :weight bold)
               ("PHONE" :foreground "forest green" :weight bold)
               ("PROJECT" :inherit font-lock-string-face)
 
               )))
 
+;;(set-cursor-color "red")
+(setq evil-default-cursor (quote (t "#750000"))
+    evil-visual-state-cursor '("#880000" box)
+    evil-normal-state-cursor '("#750000" box)
+    evil-insert-state-cursor '("#e2e222" box)
+    )
+
+(set-cursor-color "red")
+
+
+(defconst leuven-org-completed-date-regexp
+  (concat " \\("
+          "CLOSED: \\[%Y-%m-%d"
+          "\\|"
+          "- State \"\\(DONE\\|CANX\\)\" * from .* \\[%Y-%m-%d"
+          "\\|"
+          "- State .* ->  *\"\\(DONE\\|CANX\\)\" * \\[%Y-%m-%d"
+          "\\) ")
+  "Matches any completion time stamp.")
 
 ;;; Agenda views
-
 (setq-default org-agenda-clockreport-parameter-plist '(:link t :maxlevel 3))
 
+;; agenda data function
+(defun leuven--skip-entry-unless-deadline-in-n-days-or-more (n)
+  "Skip entries that have no deadline, or that have a deadline earlier than in N days."
+  (let* ((dl (org-entry-get nil "DEADLINE"))
+         (sd (org-entry-get nil "SCHEDULED"))
+         )
+    (if (or (and dl
+                 (not dl)
+                 (equal dl ""))
+            (and sd
+                  (not sd)
+                  (equal sd ""))
+            (org-time< dl (+ (org-time-today) (* n 86400))))
+        (progn (outline-next-heading) (point)))))
 
-(let ((active-project-match "-INBOX/PROJECT"))
+;; 截止日期早于今天
+(defun leuven--skip-entry-unless-overdue-deadline ()
+  "Skip entries that have no deadline, or that have a deadline later than or equal to today."
+  (let* ((dl (org-entry-get nil "DEADLINE"))
+         (sd (org-entry-get nil "SCHEDULED"))
+         )
+    (if (or (and dl
+                 (not dl)
+                 (equal dl "")
+                 )
+            (and sd
+                 (not sd)
+                 (equal sd "")
+                 )
+            (org-time>= dl (org-time-today)))
+        (progn (outline-next-heading) (point)))))
 
-  (setq org-stuck-projects
-        `(,active-project-match ("NEXT")))
-
-  (setq org-agenda-compact-blocks t
-        org-agenda-sticky t
-        org-agenda-start-on-weekday nil
-        org-agenda-span 'day
-        org-agenda-include-diary nil
-        org-agenda-sorting-strategy
-        '((agenda habit-down time-up user-defined-up effort-up category-keep)
-          (todo category-up effort-up)
-          (tags category-up effort-up)
-          (search category-up))
-        org-agenda-window-setup 'current-window
-        org-agenda-custom-commands
-        `(("N" "Notes" tags "NOTE"
-           ((org-agenda-overriding-header "Notes")
-            (org-tags-match-list-sublevels t)))
-          ("c" "Calendar" agenda ""
-           ((org-agenda-span 7)                          ;; [1]
-            (org-agenda-start-on-weekday 0)               ;; [2]
-            (org-agenda-time-grid nil)
-            (org-agenda-repeating-timestamp-show-all t)   ;; [3]
-            (org-agenda-entry-types '(:timestamp :sexp))
-            (org-deadline-warning-days 60)
-            )
-           )
-          ("d" "Upcoming deadlines" agenda ""
-           ((org-agenda-time-grid nil)
-            (org-agenda-span 10)
-            (org-deadline-warning-days 365)        ;; [1]
-            ;; (org-deadline-warning-days 60)
-            ;; (org-agenda-time-grid nil)
-            (org-agenda-entry-types '(:deadline))  ;; [2]
-            )
-           )
-          ("j" "Weekly schedule" agenda ""
-           ((org-agenda-span 7)           ;; agenda will start in week view
-            (org-agenda-start-on-weekday 0)
-            (org-agenda-time-grid nil)
-            (org-agenda-repeating-timestamp-show-all t)   ;; ensures that repeating events appear on all relevant dates
-            (org-agenda-skip-function '(org-agenda-skip-entry-if 'deadline 'scheduled))))
-          ;; other commands go here
-
-          ("P" "Printed agenda"
-            ((agenda "" ((org-agenda-span 7)                      ;; overview of appointments
-                         (org-agenda-start-on-weekday nil)         ;; calendar begins today
-                         (org-agenda-repeating-timestamp-show-all t)
-                         (org-agenda-entry-types '(:timestamp :sexp))))
-             (agenda "" ((org-agenda-span 1)                      ; daily agenda
-                         (org-deadline-warning-days 7)            ; 7 day advanced warning for deadlines
-                         (org-agenda-todo-keyword-format "[ ]")
-                         (org-agenda-scheduled-leaders '("" ""))
-                         (org-agenda-prefix-format "%t%s")))
-             (todo "TODO"                                          ;; todos sorted by context
-                   ((org-agenda-prefix-format "[ ] %T: ")
-                    (org-agenda-sorting-strategy '(tag-up priority-down))
-                    (org-agenda-todo-keyword-format "")
-                    (org-agenda-overriding-header "\nTasks by Context\n------------------\n"))))
-            ((org-agenda-with-colors nil)
-             (org-agenda-compact-blocks t)
-             (org-agenda-remove-tags t)
-             (ps-number-of-columns 2)
-             (ps-landscape-mode t))
-            ("~/agenda.ps"))
+;; 截止日期晚于今天
+(defun leuven--skip-entry-less-overdue-deadline ()
+  "Skip entries that have no deadline, or that have a deadline later than or equal to today."
+  (let* ((dl (org-entry-get nil "DEADLINE")))
+    (if (or (not dl)
+            (equal dl "")
+            (org-time< dl (org-time-today)))
+        (progn (outline-next-heading) (point)))))
 
 
-          ("g" "GTD"
-           ((agenda "" nil)
-            (tags "INBOX"
-                  ((org-agenda-overriding-header "Inbox")
-                   (org-tags-match-list-sublevels nil)))
-            (stuck ""
-                   ((org-agenda-overriding-header "Stuck Projects")
-                    (org-agenda-tags-todo-honor-ignore-options t)
-                    (org-tags-match-list-sublevels t)
-                    (org-agenda-todo-ignore-scheduled 'future)))
-            (tags-todo "-INBOX"
-                       ((org-agenda-overriding-header "Next Actions")
-                        (org-agenda-tags-todo-honor-ignore-options t)
-                        (org-agenda-todo-ignore-scheduled 'future)
-                        (org-agenda-skip-function
-                         '(lambda ()
-                            (or (org-agenda-skip-subtree-if 'todo '("HOLD" "WAITING"))
-                                (org-agenda-skip-entry-if 'nottodo '("NEXT")))))
-                        (org-tags-match-list-sublevels t)
-                        (org-agenda-sorting-strategy
-                         '(todo-state-down effort-up category-keep))))
-            (tags-todo ,active-project-match
-                       ((org-agenda-overriding-header "Projects")
-                        (org-tags-match-list-sublevels t)
-                        (org-agenda-sorting-strategy
-                         '(category-keep))))
-            (tags-todo "-INBOX/-NEXT"
-                       ((org-agenda-overriding-header "Orphaned Tasks")
-                        (org-agenda-tags-todo-honor-ignore-options t)
-                        (org-agenda-todo-ignore-scheduled 'future)
-                        (org-agenda-skip-function
-                         '(lambda ()
-                            (or (org-agenda-skip-subtree-if 'todo '("PROJECT" "HOLD" "WAITING" "DELEGATED"))
-                                (org-agenda-skip-subtree-if 'nottododo '("TODO")))))
-                        (org-tags-match-list-sublevels t)
-                        (org-agenda-sorting-strategy
-                         '(category-keep))))
-            (tags-todo "/WAITING"
-                       ((org-agenda-overriding-header "Waiting")
-                        (org-agenda-tags-todo-honor-ignore-options t)
-                        (org-agenda-todo-ignore-scheduled 'future)
-                        (org-agenda-sorting-strategy
-                         '(category-keep))))
-            (tags-todo "/DELEGATED"
-                       ((org-agenda-overriding-header "Delegated")
-                        (org-agenda-tags-todo-honor-ignore-options t)
-                        (org-agenda-todo-ignore-scheduled 'future)
-                        (org-agenda-sorting-strategy
-                         '(category-keep))))
-            (tags-todo "-INBOX"
-                       ((org-agenda-overriding-header "On Hold")
-                        (org-agenda-skip-function
-                         '(lambda ()
-                            (or (org-agenda-skip-subtree-if 'todo '("WAITING"))
-                                (org-agenda-skip-entry-if 'nottodo '("HOLD")))))
-                        (org-tags-match-list-sublevels nil)
-                        (org-agenda-sorting-strategy
-                         '(category-keep))))
-            ;; (tags-todo "-NEXT"
-            ;;            ((org-agenda-overriding-header "All other TODOs")
-            ;;             (org-match-list-sublevels t)))
-            (tags-todo "-noAgenda"
-                       ((org-agenda-overriding-header "asdasdasd")
-                        (org-agenda-skip-function
-                         '(lambda ()
-                            (or (org-agenda-skip-subtree-if 'todo '("WAITING"))
-                                (org-agenda-skip-entry-if 'nottodo '("HOLD"))
-                                )
-                            )
-                         (org-tags-match-list-sublevels nil)
-                         (org-agenda-sorting-strategy
-                          '(category-keep))
-                         )
-                        )
-                       )
-            )
-           ))))
+(defun leuven--skip-entry-if-future-deadline ()
+  "Skip entries that have a deadline earlier than today."
+  (let* ((dl (org-entry-get nil "DEADLINE")))
+    (if (org-time> dl (org-time-today))
+        (progn (outline-next-heading) (point)))))
 
+(defun leuven--skip-entry-if-past-deadline ()
+  "Skip entries that have a deadline earlier than today."
+  (let* ((dl (org-entry-get nil "DEADLINE")))
+    (if (org-time< dl (org-time-today))
+        (progn (outline-next-heading) (point)))))
+
+(defun leuven--skip-entry-if-deadline-in-less-than-n-days-or-schedule-in-less-than-n-days (n1 n2)
+  "Skip entries that have a deadline in less than N1 days, or that have a
+  scheduled date in less than N2 days, or that have no deadline nor scheduled."
+  (let* ((dl (org-entry-get nil "DEADLINE"))
+         (sd (org-entry-get nil "SCHEDULED")))
+    (if (or (and dl
+                 (not (equal dl ""))
+                 (org-time< dl (+ (org-time-today) (* n1 86400))))
+            (and sd
+                 (not (equal sd ""))
+                 (org-time< sd (+ (org-time-today) (* n2 86400))))
+            (and (or (not dl)       ; No deadline.
+                     (equal dl ""))
+                 (or (not sd)       ; Nor scheduled.
+                     (equal sd ""))))
+        (progn (outline-next-heading) (point)))))
+
+(defun leuven--skip-entry-if-deadline-or-schedule ()
+  "Skip entries that have a deadline or that have a scheduled date."
+  (let* ((dl (org-entry-get nil "DEADLINE"))
+         (sd (org-entry-get nil "SCHEDULED")))
+    (if (or (and dl
+                 (not (equal dl "")))
+            (and sd
+                 (not (equal sd ""))))
+        (progn (outline-next-heading) (point)))))
+
+
+;; 自定义日期格式
+(defun my-org-agenda-format-date-aligned (date)
+  "Format a DATE string for display in the daily/weekly agenda, or timeline.
+This function makes sure that dates are aligned for easy reading."
+  (require 'cal-iso)
+  (let* ((dayname (calendar-day-name date 1 nil))
+         (day (cadr date))
+         (day-of-week (calendar-day-of-week date))
+         (month (car date))
+         (monthname (calendar-month-name month 1))
+         (year (nth 2 date))
+         (iso-week (org-days-to-iso-week
+                    (calendar-absolute-from-gregorian date)))
+         (weekyear (cond ((and (= month 1) (>= iso-week 52))
+                          (1- year))
+                         ((and (= month 12) (<= iso-week 1))
+                          (1+ year))
+                         (t year)))
+         (weekstring (if (= day-of-week 1)
+                         (format " W%02d" iso-week)
+                       "")))
+    (format "%s %s %s %s %s"
+            year monthname day dayname day-of-week)))
+;;(setq-default org-agenda-format-date (quote my-org-agenda-format-date-aligned))
+
+(setq-default
+ ;; inhibit-startup-screen t;隐藏启动显示画面
+ calendar-date-style 'iso
+ ;; calendar-day-abbrev-array ["七" "一" "二" "三" "四" "五" "六"]
+ ;; calendar-day-name-array ["七" "一" "二" "三" "四" "五" "六"]
+ ;; calendar-month-name-array ["一月" "二月" "三月" "四月" "五月" "六月" "七月" "八月" "九月" "十月" "十一月" "十二月"]
+ calendar-week-start-day 1
+
+ org-agenda-deadline-leaders (quote ("最后期限:  " "%3d 天后到期: " "%2d 天前: "))
+ org-agenda-inhibit-startup t
+ org-agenda-scheduled-leaders (quote ("计划任务:" "计划任务(第%2d次激活): "))
+ org-agenda-window-setup (quote current-window)
+ ;; org-clock-string "计时:"
+ ;; org-closed-string "已关闭:"
+ ;; org-deadline-string "最后期限:"
+ ;; org-scheduled-string "计划任务:"
+ ;; org-time-stamp-formats  '("<%Y-%m-%d 周%u>" . "<%Y-%m-%d 周%u %H:%M>")
+ org-agenda-show-all-dates t
+ org-agenda-skip-deadline-if-done t
+ org-agenda-skip-scheduled-if-done t
+ org-reverse-note-order t ;;org.el
+ org-link-file-path-type  'relative
+ org-log-done 'time
+ ;; code执行免应答（Eval code without confirm）
+ org-confirm-babel-evaluate nil
+ org-image-actual-width '(600)
+ org-emphasis-regexp-components
+ ;; markup 记号前后允许中文
+ ;; https://emacs-china.org/t/org-mode/597/11
+ ;; Org 里中文/斜体/、*粗体*、_下划线_、+删除+、~代码~、=常量=。
+ (list (concat " \t('\"{"            "[:nonascii:]")
+       (concat "- \t.,:!?;'\")}\\["  "[:nonascii:]")
+       " \t\r\n,\"'"
+       "."
+       1)
+  )
+(setq org-agenda-prefix-format
+      '((agenda  . " %i %-10:c%?-12t% s")
+        (timeline  . "  % s")
+        (todo  . " %i %-12:c")
+        (tags  . " %i %-12:c")
+        (search . " %i %-12:c"))
+      )
+
+;;(let ((active-project-match "-INBOX/PROJECT")))
+;;(setq org-stuck-projects
+;;      `(,active-project-match ("NEXT")))
+
+(setq org-agenda-compact-blocks t
+      org-agenda-sticky t
+      org-agenda-start-on-weekday nil
+      org-agenda-span 'day
+      org-agenda-include-diary nil
+      ;;org-agenda-sorting-strategy
+      ;;'((agenda habit-down time-up user-defined-up effort-up category-keep)
+      ;;  (todo category-up effort-up)
+      ;;  (tags category-up effort-up)
+      ;;  (search category-up))
+      org-agenda-window-setup 'current-window
+      org-agenda-custom-commands
+      `(("N" "Notes" tags "NOTE"
+         ((org-agenda-overriding-header "Notes")
+          (org-tags-match-list-sublevels t)))
+
+        ;; 最近7天视图
+        ("c" "最近一周视图" agenda ""
+         ((org-agenda-span 7)
+          ;; 每周开始日期
+          (org-agenda-start-on-weekday 1)
+          (org-agenda-time-grid nil)
+          (org-agenda-repeating-timestamp-show-all t)
+          (org-deadline-warning-days 60)
+          (org-agenda-entry-types '(:timestamp :sexp))
+          )
+         )
+
+        ;; 一周视图
+        ;; ("j" "一周视图" agenda ""
+        ;;  ((org-agenda-span 7)
+        ;;   (org-agenda-start-on-weekday 1)
+        ;;   (org-agenda-time-grid nil)
+        ;;   (org-agenda-repeating-timestamp-show-all t)
+        ;;   (org-agenda-skip-function '(org-agenda-skip-entry-if 'deadline 'scheduled))
+        ;;   ))
+
+        ("d" . "截止时间视图")
+        ;; 未来1年内即将到期视图
+        ("dy" "未来1年内即将到期视图" agenda "4万英尺"
+         (
+          (org-agenda-span 1)
+          (org-agenda-time-grid nil)
+          (org-deadline-warning-days 365)
+          (org-agenda-entry-types '(:deadline))
+          (org-agenda-skip-function '(leuven--skip-entry-if-past-deadline))
+          ))
+
+        ;; 未来3个月内即将到期视图
+        ("dq" "未来3个月内即将到期视图(季度)" agenda "3万英尺"
+         (
+          (org-agenda-span 1)
+          (org-agenda-time-grid nil)
+          (org-deadline-warning-days 90)
+          (org-agenda-entry-types '(:deadline :scheduled))
+          (org-agenda-skip-function '(leuven--skip-entry-if-past-deadline))
+          ))
+
+        ;; 未来1个月内即将到期视图
+        ("dm" "未来1个月年内即将到期视图" agenda "2万英尺"
+         (
+          (org-agenda-span 1)
+          (org-agenda-time-grid nil)
+          (org-deadline-warning-days 30)
+          (org-agenda-entry-types '(:deadline :scheduled))
+          (org-agenda-skip-function '(leuven--skip-entry-if-past-deadline))
+          ))
+
+        ;; 未来1周内即将到期视图
+        ("dw" "未来1周内即将到期视图" agenda "1万英尺"
+         (
+          (org-agenda-span 1)
+          (org-agenda-time-grid nil)
+          (org-deadline-warning-days 7)
+          (org-agenda-entry-types '(:deadline))
+          (org-agenda-skip-function '(leuven--skip-entry-if-past-deadline))
+          ))
+
+
+        ("p" . "预测/过去/现在将来")
+
+        ;; 所有
+        ("pa" "ago/过去" agenda "过去"
+         ((org-agenda-span 1)           ;; agenda will start in week view
+          (org-agenda-start-on-weekday nil)
+          ;;(org-agenda-start-day "-2w")
+          (org-agenda-time-grid nil)
+          (org-agenda-repeating-timestamp-show-all t)
+          ;;(org-agenda-skip-function '(org-agenda-skip-entry-if 'deadline 'scheduled))
+          (org-agenda-skip-function '(leuven--skip-entry-unless-overdue-deadline))
+          ;; leuven--skip-entry-unless-overdue-deadline
+          ))
+
+        ("pn" "now/现在" agenda "现在"
+         (
+          (org-agenda-span 30)
+          (org-agenda-start-on-weekday 1)
+          (org-agenda-start-day "-2w")
+          (org-agenda-time-grid nil)
+          (org-agenda-skip-function '(org-agenda-skip-entry-if 'deadline 'scheduled))
+          ;;(org-agenda-skip-function '(leuven--skip-entry-if-deadline-in-less-than-n-days-or-schedule-in-less-than-n-days 0 15))
+          ))
+
+        ("pf" "future/将来" agenda "将来"
+         (
+          (org-agenda-entry-types '(:deadline))
+          ;;(org-agenda-span 1)
+          (org-agenda-span 'day)
+          (org-agenda-sorting-strategy '(deadline-up))
+          (org-agenda-start-on-weekday nil)
+          (org-agenda-time-grid nil)
+          (org-agenda-repeating-timestamp-show-all t)
+          ;; (org-agenda-skip-function '(org-agenda-skip-entry-if 'deadline 'scheduled))
+          (org-agenda-skip-function '(leuven--skip-entry-less-overdue-deadline))
+          )
+         )
+
+        ;; 重要度视图
+        ("w" . "任务安排")
+        ("wa" "重要且紧急的任务" tags-todo "+PRIORITY=\"A\""
+         ((org-agenda-overriding-header "重要且紧急的任务: 尽早动手，缓解压力"))
+         )
+        ("wb" "重要且不紧急的任务" tags-todo "-Weekly-Monthly-Daily+PRIORITY=\"B\""
+         ((org-agenda-overriding-header "重要且不紧急的任务: 尽早计划，逐步完成"))
+         )
+        ("wc" "不重要且紧急的任务" tags-todo "+PRIORITY=\"C\""
+         ((org-agenda-overriding-header "不重要且紧急的任务: 寻求帮助，设定截止时间"))
+         )
+        ("wd" "不重要且不紧急的任务" tags-todo "+PRIORITY=\"D\""
+         ((org-agenda-overriding-header "不重要且不紧急的任务: 冷却处理"))
+         )
+        ("b" "Blog" tags-todo "BLOG")
+
+        ("A" "全部上下文视图"
+         (;;(agenda "" nil)
+          (tags-todo "@Office" ((org-agenda-overriding-header "办公室")))
+          (tags-todo "@Maybe" ((org-agenda-overriding-header "将来/也许")))
+          (tags-todo "@Agendas" ((org-agenda-overriding-header "")))
+          (tags-todo "@Anywhere" ((org-agenda-overriding-header "任何地方")))
+          (tags-todo "@Phone" ((org-agenda-overriding-header "电话")))
+          (tags-todo "@Computer" ((org-agenda-overriding-header "电脑前")))
+          (tags-todo "@Errands" ((org-agenda-overriding-header "外出")))
+          (tags-todo "@Home" ((org-agenda-overriding-header "家里")))
+          (tags-todo "@Shopping" ((org-agenda-overriding-header "购物")))
+          (tags-todo "@Project" ((org-agenda-overriding-header "项目")))
+          ))
+
+        ;; ("t" "测试" agenda "test"
+        ;;  (
+        ;;   (org-agenda-span 4)
+        ;;   (org-agenda-start-day "-3d")
+        ;;   (org-agenda-start-on-weekday nil)
+        ;;   (org-agenda-todo-ignore-scheduled 'future)
+        ;;   ;;(org-agenda-sorting-strategy '(todo-state-down effort-up category-keep))
+        ;;   ;;(org-agenda-sorting-strategy '(priority-down))
+        ;;   (org-agenda-tags-todo-honor-ignore-options t)
+
+        ;;   (org-agenda-sorting-strategy '(category-keep))
+        ;;   (org-tags-match-list-sublevels t)
+
+        ;;   )
+        ;;  )
+        ))
+
+;;(setq org-agenda-sorting-strategy
+;;      '((agenda priority-down category-keep time-up)
+;;        (todo priority-down category-keep)
+;;        (tags priority-down category-keep)
+;;        (search category-keep)))
+
+
+          ;;((
+          ;; (tags "INBOX"
+          ;;       ((org-agenda-overriding-header "Inbox")
+          ;;        (org-tags-match-list-sublevels nil)))
+          ;; (stuck "a"
+          ;;        ((org-agenda-overriding-header "Stuck Projects")
+          ;;         (org-agenda-tags-todo-honor-ignore-options t)
+          ;;         (org-tags-match-list-sublevels t)
+          ;;         (org-agenda-todo-ignore-scheduled 'future)))
+          ;; (tags-todo "-INBOX"
+          ;;            ((org-agenda-overriding-header "Next Actions")
+          ;;             (org-agenda-tags-todo-honor-ignore-options t)
+          ;;             (org-agenda-todo-ignore-scheduled 'future)
+          ;;             (org-agenda-skip-function
+          ;;              '(lambda ()
+          ;;                 (or (org-agenda-skip-subtree-if 'todo '("HOLD" "WAITING"))
+          ;;                     (org-agenda-skip-entry-if 'nottodo '("NEXT")))))
+          ;;             (org-tags-match-list-sublevels t)
+          ;;             (org-agenda-sorting-strategy
+          ;;             '(todo-state-down effort-up category-keep))))
+          ;; (todo "TODO|DONE" ; Includes repeated tasks (back in TODO).
+          ;;           ((org-agenda-overriding-header "COMPLETED TODAY")
+          ;;            (org-agenda-skip-function
+          ;;             '(org-agenda-skip-entry-if
+          ;;               'notregexp
+          ;;               (format-time-string leuven-org-completed-date-regexp)))
+          ;;            (org-agenda-sorting-strategy '(priority-down))))
+          ;; (tags-todo ,active-project-match
+          ;;            ((org-agenda-overriding-header "Projects")
+          ;;             (org-tags-match-list-sublevels t)
+          ;;             (org-agenda-sorting-strategy
+          ;;              '(category-keep))))
+          ;; (tags-todo "-INBOX/-NEXT"
+          ;;            ((org-agenda-overriding-header "Orphaned Tasks")
+          ;;             (org-agenda-tags-todo-honor-ignore-options t)
+          ;;             (org-agenda-todo-ignore-scheduled 'future)
+          ;;             (org-agenda-skip-function
+          ;;              '(lambda ()
+          ;;                 (or (org-agenda-skip-subtree-if 'todo '("PROJECT" "HOLD" "WAITING" "DELEGATED"))
+          ;;                     (org-agenda-skip-subtree-if 'nottododo '("TODO")))))
+          ;;             (org-tags-match-list-sublevels t)
+          ;;             (org-agenda-sorting-strategy
+          ;;              '(category-keep))))
+          ;; (tags-todo "/WAITING"
+          ;;            ((org-agenda-overriding-header "Waiting")
+          ;;             (org-agenda-tags-todo-honor-ignore-options t)
+          ;;             (org-agenda-todo-ignore-scheduled 'future)
+          ;;             (org-agenda-sorting-strategy
+          ;;              '(category-keep))))
+          ;; (tags-todo "/DELEGATED"
+          ;;            ((org-agenda-overriding-header "Delegated")
+          ;;             (org-agenda-tags-todo-honor-ignore-options t)
+          ;;             (org-agenda-todo-ignore-scheduled 'future)
+          ;;             (org-agenda-sorting-strategy
+          ;;              '(category-keep))))
+          ;; (tags-todo "-INBOX"
+          ;;            ((org-agenda-overriding-header "On Hold")
+          ;;             (org-agenda-skip-function
+          ;;              '(lambda ()
+          ;;                 (or (org-agenda-skip-subtree-if 'todo '("WAITING"))
+          ;;                     (org-agenda-skip-entry-if 'nottodo '("HOLD")))))
+          ;;             (org-tags-match-list-sublevels nil)
+          ;;             (org-agenda-sorting-strategy
+          ;;              '(category-keep))))
+          ;; (tags-todo "-NEXT"
+          ;;            ((org-agenda-overriding-header "All other TODOs")
+          ;;             (org-match-list-sublevels t)))
+          ;;))
+
+;; 优先级范围和默认任务的优先级
+(setq org-highest-priority ?A)
+(setq org-lowest-priority  ?D)
+(setq org-default-priority ?B)
+
+;; 优先级醒目外观
+(setq org-priority-faces
+  '((?A . (:weight bold))
+    (?B . (:weight bold))
+    (?C . (:weight bold))
+    (?D . (:weight bold))
+))
 
 (add-hook 'org-agenda-mode-hook 'hl-line-mode)
 
@@ -387,40 +681,45 @@ typical word processor."
 ;;                                "tell application \"org-clock-statusbar\" to clock out"))))
 
 ;; tags
+;; @代表动作/情景
 (setq org-tag-alist '(
-                      ("@read" . nil)
-                      (:grouptags . nil)
-                      ("@read_book" . nil)
-                      ("@read_ebook" . nil)
-                      (:newline . nil)
 
-                      ("@watch" . nil)
-                      (:grouptags . nil)
-                      ("@watch_movie" . nil)
-                      ("@watch_study" . nil)
+                      ("NOTE" . ?n)
 
-                      (:newline . nil)
+
+                      ;;("@read" . nil)
+                      ;;(:grouptags . nil)
+                      ;;("@read_book" . nil)
+                      ;;("@read_ebook" . nil)
+                      ;;(:newline . nil)
+
+                      ;;("@watch" . nil)
+                      ;;(:grouptags . nil)
+                      ;;("@watch_movie" . nil)
+                      ;;("@watch_study" . nil)
+
+                      ;;(:newline . nil)
+
                       ;; 分组只能选组内一个
-                      (:startgroup . nil)
-                      ("@gtd" . nil)
-                      (:grouptags . nil)
+                      ;;(:startgroup . nil)
+                      ;;("@gtd" . nil)
+                      ;;(:grouptags . nil)
                       ("@Office" . ?o)
-                      ("@SomedayMaybe" . ?m)
+                      ("@Maybe" . ?m)
                       ("@Agendas" . ?a)
                       ("@Anywhere" .?A)
-                      ("@phone" . ?p)
-                      ("@Calls" . ?c)
-                      ("@Computer". ?C)
+                      ("@Phone" . ?p)
+                      ("@Computer". ?c)
                       ("@Errands" . ?e)
                       ("@Home" . ?h)
                       ("@Shopping" . ?s)
-                      (:endgroup . nil)
+                      ;;(:endgroup . nil)
                       ("@Project" . ?p)
-                      (:grouptags . nil)
-                      ("gulian" . nil)
-                      ("jieli" . nil)
-                      ("bjwps" . nil)
-                      ("noAgenda" . nil)
+                      ;; (:grouptags . nil)
+                      ;; ("gulian" . nil)
+                      ;; ("jieli" . nil)
+                      ;; ("bjwps" . nil)
+                      ;; ("noAgenda" . nil)
                       ))
 
 ;;(setq org-tag-alist '((:startgroup . nil)
@@ -428,7 +727,6 @@ typical word processor."
 ;;                      ("@tennisclub" . ?t)
 ;;                      (:endgroup . nil)
 ;;                      ("laptop" . ?l) ("pc" . ?p))
-
 
 
 ;; bullets
@@ -447,11 +745,6 @@ typical word processor."
 ;; TODO: nested projects!
 
 
-;;; Archiving
-
-(setq org-archive-mark-done nil)
-(setq org-archive-location "%s_archive::* Archive")
-
 ;;(defun sourcod-org-packages/post-init-org()
 ;;  (progn
 ;;    (require 'ox-publish)
@@ -462,45 +755,7 @@ typical word processor."
 (setq org-note-path  (concat org-path "notes/"))
 
 
-(setq org-default-notes-file (concat org-path "inbox.org"))
-
-;;(setq org-capture-templates
-;;      '(("t" "Todo" entry (file+headline ("~/workspace/org/gtd.org") "Tasks")
-;;         "* TODO [#B] %?\n  %i\n"
-;;         :empty-lines 1
-;;         )
-;;        ("tg" "Todo1" entry (file+headline "~/workspace/org/gtd.org" "Tasks")
-;;         "* TODO [#B] %?\n  %i\n"
-;;         :empty-lines 1
-;;         )
-;;        ("n" "notes" entry (file+headline "~/workspace/org/notes.org" "Quick notes")
-;;         "* %?\n  %i\n %U"
-;;         :empty-lines 1
-;;         )
-;;        ("B" "Blog Ideas" entry (file+headline "~/workspace/org/notes.org" "Blog Ideas")
-;;         "* TODO [#B] %?\n  %i\n %U"
-;;         :empty-lines 1
-;;         )
-;;        ("s" "Code Snippet" entry (file "~/workspace/org/snippets.org")
-;;         "* %?\t%^g\n#+BEGIN_SRC %^{language}\n\n#+END_SRC")
-;;
-;;        ("k" "tlkj" entry (file+headline "~/workspace/org/gtd.org" "tlkj")
-;;         "* TODO [#B] %?\n  %i\n %U"
-;;         :empty-lines 1)
-;;        ("w" "work" entry (file+headline "~/workspace/org/gtd.org" "work")
-;;         "* TODO [#B] %?\n  %i\n %U"
-;;         :empty-lines 1)
-;;        ("l" "links" entry (file+headline "~/workspace/org/notes.org" "link notes")
-;;         "* TODO [#C] %?\n  %i\n %a \n %U"
-;;         :empty-lines 1)
-;;        ("j" "Journal Entry"
-;;         entry (file+datetree "~/workspace/org/journal.org")
-;;         "* %?"
-;;         :empty-lines 1)
-;;        ("b" "Books" entry (file+headline "~/workspace/org/books.org" "book notes")
-;;         "* TODO [#D] %?\n  %i\n %U"
-;;         :empty-lines 1)
-;;        ))
+(setq org-default-notes-file (concat org-path "notes.org"))
 
 ;; billing
 (defun get-year-and-month ()
@@ -536,13 +791,8 @@ typical word processor."
 (setq org-capture-templates
       `(("c" "Contacts" table-line (file ,(concat org-path "contact.org"))
          "| %U | %^{姓名} | %^{主手机号} | %^{次手机号} | %^{邮箱} | %^{公司} | %^{标签} | %^{备注} | %^{生日} |")
-        ("t" "GTD")
-        ("ta" "Tasks" entry (file+headline ,(concat org-path "gtd.org") "Tasks")
+        ("t" "Inbox" entry (file+headline ,(concat org-path "gtd/inbox.org") "Inbox")
          "* TODO [#B] %?\n  %i\n"
-         :empty-lines 1
-         )
-        ("tw" "work" entry (file+headline ,(concat org-path "gtd.org") "work")
-         "* TODO [#B] %?\n %i\n"
          :empty-lines 1
          )
         ;; 临时笔记
@@ -551,15 +801,27 @@ typical word processor."
          "* %?\n  %i\n %U"
          :empty-lines 1
          )
-        ("nn" "笔记" entry (file+headline ,(concat org-path "notes.org") "Quick notes")
+        ("nn" "Quick notes" entry (file+headline ,(concat org-path "notes.org") "Quick notes")
          "* %?\n  %i\n %U"
          :empty-lines 1
          )
+
+        ;; 会议笔记
+        ("nm" "Meeting" entry (file+headline ,(concat org-path "notes.org") "Meeting")
+         "* MEETING with %? :MEETING:\n%U" :clock-in t :clock-resume t)
+
         ;; 记账
         ("i" "记账" table-line (file+datetree+prompt ,(concat org-path "billing.org"))
          "| %U | %^{类别} | %^{描述} | %^{金额} | " :kill-buffer t
          :empty-lines 1
          )
+
+        ("ni" "idea" entry (file+headline ,(concat org-path "notes.org") "idea")
+         "*  %?\n  %i\n %U"
+         :empty-lines 1
+         )
+
+        ;; blog
         ("B" "create blog" plain (file ,(concat org-path "blog/" (format-time-string "%Y-%m-%d.org")))
          ,(concat "#+TITLE: %^{标题}\n"
                   "#+TAGS: %^{标签}\n"
@@ -574,11 +836,12 @@ typical word processor."
                   "#+options: \\n:t\n"
                   "#+TOC: headlines 3\n")
          )
+
         ;; 代码片段
         ("s" "Code Snippet" entry (file ,(concat org-path "snippets.org"))
          "* %?\t%^g\n#+BEGIN_SRC %^{language}\n\n#+END_SRC")
         ;; 工作
-        ("w" "work" entry (file+headline ,(concat org-path "gtd.org") "work")
+        ("w" "work" entry (file+headline ,(concat org-path "inbox.org") "work")
          "* TODO [#B] %?\n  %i\n %U"
          :empty-lines 1)
         ;; 连接收藏夹
@@ -595,34 +858,32 @@ typical word processor."
         ("b" "Books" entry (file+headline ,(concat org-path "books.org") "book notes")
          "* TODO [#D] %?\n  %i\n %U"
          :empty-lines 1)
+
         ;; protocol
 
         ;; projects
-        ("p" "projects")
-        ;; 天蓝科技
-        ("pt" "天蓝科技")
-        ("pt1" "zdqdp" entry (file+olp ,(concat org-path "project.org") "天蓝科技" "自动抢订票")
-         "* TODO [#D] %?")
+        ;; ("p" "projects")
+        ;; ;; 天蓝科技
+        ;; ("pt" "天蓝科技")
+        ;; ("pt1" "zdqdp" entry (file+olp ,(concat org-path "project.org") "天蓝科技" "自动抢订票")
+        ;;  "* TODO [#D] %?")
 
-        ("pz" "自己")
-        ("pz1" "WXBootstrap" entry (file+olp ,(concat org-path "project.org") "my" "WXBootstrap")
-         "* TODO [#D] %?")
+        ;; ("pz" "自己")
+        ;; ("pz1" "WXBootstrap" entry (file+olp ,(concat org-path "project.org") "my" "WXBootstrap")
+        ;;  "* TODO [#D] %?")
 
 
-        ("pw" "外部")
-        ("pw2" "富胜科技" entry (file+olp ,(concat org-path "project.org") "富胜科技") "* TODO [D] %?")
+        ;; ("pw" "外部")
+        ;; ("pw2" "富胜科技" entry (file+olp ,(concat org-path "project.org") "富胜科技") "* TODO [D] %?")
 
-        ("pw1" "古联")
-        ;; gulian
-        ("pw11" "gulian-app" entry (file+olp ,(concat org-path "project.org") "gulian" "app")
-         "* TODO [#D] %?")
-        ;; gulian
-        ("pw12" "gulian-wx" entry (file+olp ,(concat org-path "project.org") "gulian" "wx")
-         "* TODO [#D] %?")
+        ;; ("pw1" "古联")
+        ;; ;; gulian
+        ;; ("pw11" "gulian-app" entry (file+olp ,(concat org-path "project.org") "gulian" "app")
+        ;;  "* TODO [#D] %?")
+        ;; ;; gulian
+        ;; ("pw12" "gulian-wx" entry (file+olp ,(concat org-path "project.org") "gulian" "wx")
+        ;;  "* TODO [#D] %?")
 
-        ;; 会议笔记
-        ("m" "Meeting" entry (file+headline ,(concat org-path "notes.org") "Meeting")
-         "* MEETING with %? :MEETING:\n%U" :clock-in t :clock-resume t)
 
         ("P" "Password" entry (file ,(concat org-path "password.org.cpt"))
          "* %U - %^{title} %^G\n\n  - 用户名: %^{用户名}\n  - 密码: %(get-or-create-password)"
@@ -637,62 +898,76 @@ typical word processor."
 ;; ("pw11" "gulian-app" entry (file+olp ,(concat org-path "project.org") "gulian" "app") "* TODO [D] %?")
 
 
-(setq org-agenda-custom-commands
-      '(
-        ("w" . "任务安排")
-        ("wa" "重要且紧急的任务" tags-todo "+PRIORITY=\"A\"")
-        ("wb" "重要且不紧急的任务" tags-todo "-Weekly-Monthly-Daily+PRIORITY=\"B\"")
-        ("wc" "不重要且紧急的任务" tags-todo "+PRIORITY=\"C\"")
-        ("wd" "不重要且不紧急的任务" tags-todo "+PRIORITY=\"D\"")
+;; (setq org-agenda-custom-commands
+;;       '(
+;;         ("w" . "任务安排")
+;;         ("wa" "重要且紧急的任务" tags-todo "+PRIORITY=\"A\"")
+;;         ("wb" "重要且不紧急的任务" tags-todo "-Weekly-Monthly-Daily+PRIORITY=\"B\"")
+;;         ("wc" "不重要且紧急的任务" tags-todo "+PRIORITY=\"C\"")
+;;         ("wd" "不重要且不紧急的任务" tags-todo "+PRIORITY=\"D\"")
 
-        ("b" "Blog" tags-todo "BLOG")
+;;         ("b" "Blog" tags-todo "BLOG")
 
-        ("p" . "项目安排")
-        ("pg" . "外部项目")
-        ;; 外部项目
-        ("pg0" tags-todo "PROJECT+WORK+CATEGORY=\"gulian\"")
-        ("pg1" tags-todo "PROJECT+WORK+CATEGORY=\"gulian-wx\"")
-        ("pg2" tags-todo "PROJECT+WORK+CATEGORY=\"gulian-app\"")
+;;         ("p" . "项目安排")
+;;         ("pg" . "外部项目")
+;;         ;; 外部项目
+;;         ("pg0" tags-todo "PROJECT+WORK+CATEGORY=\"gulian\"")
+;;         ("pg1" tags-todo "PROJECT+WORK+CATEGORY=\"gulian-wx\"")
+;;         ("pg2" tags-todo "PROJECT+WORK+CATEGORY=\"gulian-app\"")
 
-        ;; tlkj
-        ("pt" . "天蓝科技")
-        ("pt0" "天蓝科技" tags-todo "PROJECT+WORK+CATEGORY=\"tlkj\"")
-        ("pt1" "自动抢订票" tags-todo "PROJECT+WORK+CATEGORY=\"tlkj-zdqdp\"")
-        ("pt2" "codframe框架" tags-todo "PROJECT+WORK+CATEGORY=\"tlkj-codframe\"")
-        ("pt3" "爬虫项目" tags-todo "PROJECT+WORK+CATEGORY=\"tlkj-crawler\"")
-
-
-        ("k" "todo" tags-todo "work")
+;;         ;; tlkj
+;;         ("pt" . "天蓝科技")
+;;         ("pt0" "天蓝科技" tags-todo "PROJECT+WORK+CATEGORY=\"tlkj\"")
+;;         ("pt1" "自动抢订票" tags-todo "PROJECT+WORK+CATEGORY=\"tlkj-zdqdp\"")
+;;         ("pt2" "codframe框架" tags-todo "PROJECT+WORK+CATEGORY=\"tlkj-codframe\"")
+;;         ("pt3" "爬虫项目" tags-todo "PROJECT+WORK+CATEGORY=\"tlkj-crawler\"")
 
 
-        ;; link
-        ("pl" tags-todo "PROJECT+DREAM+CATEGORY=\"link\"")
-        ("W" "Weekly Review"
-         ((stuck "") ;; review stuck projects as designated by org-stuck-projects
-          (tags-todo "PROJECT") ;; review all projects (assuming you use todo keywords to designate projects)
-          ))))
+;;         ("k" "todo" tags-todo "work")
+
+
+;;         ;; link
+;;         ("pl" tags-todo "PROJECT+DREAM+CATEGORY=\"link\"")
+;;         ("W" "Weekly Review"
+;;          ((stuck "") ;; review stuck projects as designated by org-stuck-projects
+;;           (tags-todo "PROJECT") ;; review all projects (assuming you use todo keywords to designate projects)
+;;           ))))
 
 ;; find org-note
 (setq org-agenda-files (list
                         ;; list 转string
 
-                        (mapconcat 'identity (directory-files (concat org-path "notes") t "\.org$")
-                                   ",")
-                        (mapconcat 'Gidentity (directory-files (concat org-path "journal") t "\.org$")
-                                   ",")
-                        (mapconcat 'identity (directory-files (concat org-path "gtd") t "\.org$")
-                                   ",")
-                        (mapconcat 'identity (directory-files (concat org-path "books") t "\.org$")
-                                   ",")
-                        (mapconcat 'identity (directory-files (concat org-path "other") t "\.org$")
-                                   ",")
+                        ;; (mapconcat 'identity (directory-files (concat org-path "notes") t "\.org$")
+                        ;;            ",")
+                        ;; (mapconcat 'Gidentity (directory-files (concat org-path "journal") t "\.org$")
+                        ;;            ",")
+                        ;; (mapconcat 'identity (directory-files (concat org-path "gtd") t "\.org$")
+                        ;;            ",")
+                        ;; (mapconcat 'identity (directory-files (concat org-path "books") t "\.org$")
+                        ;;            ",")
+                        ;; (mapconcat 'identity (directory-files (concat org-path "other") t "\.org$")
+                        ;;            ",")
 
-                        (concat org-path "gtd.org")
-                        (concat org-path "notes.org")
-                        (concat org-path "books.org")
-                        (concat org-path "journal.org")))
-;;debug
-;;(setq org-agenda-files nil)
+                        ;;(concat org-path)
+                        (concat org-path "gtd/")
+                        ;;(concat org-path "books/")
+
+                        ;;(concat org-path "gtd.org")
+                        ;;(concat org-path "notes.org")
+                        ;;(concat org-path "books.org")
+                        ;;(concat org-path "journal.org")
+                        ))
+
+
+;;; Archiving 归档
+;; C-c C-x C-a
+(setq org-archive-mark-done nil)
+
+(setq org-archive-location
+       (concat org-path "gtd/finished.org::* From %s")
+      )
+
+;;(concat org-path "gtd/finished.org::datetree/* FinishedTasks")
 
 ;; push
 ;;(setq org-agenda-files ((push
@@ -876,7 +1151,7 @@ typical word processor."
 (require-package 'org-pomodoro)
 (setq org-pomodoro-keep-killed-pomodoro-time t)
 ;; 一个番茄钟时间
-(setq org-pomodoro-length 40)
+(setq org-pomodoro-length 25)
 ;; 小憩时间
 (setq org-pomodoro-short-break-length 5)
 ;; 是否播放嘀嗒声音

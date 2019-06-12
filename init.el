@@ -77,7 +77,8 @@
 
 (require 'init-company)
 (require 'init-windows)
-(require 'init-sessions)
+;; desktop
+;; (require 'init-sessions)
 (require 'init-mmm)
 
 (require 'init-editing-utils)
@@ -103,6 +104,8 @@
 ;; password
 (require 'init-password)
 (require 'init-org)
+;;(require 'init-agenda)
+
 (require 'init-nxml)
 ;; (require 'init-html)
 (require 'init-css)
